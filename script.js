@@ -224,8 +224,7 @@ function updateVoisonaOutput() {
   if (!$("voisonaSeparatedOutput")) return;
   const cleaned = applyVoisonaCleanup(getVoisonaEditableText(), { brackets: true, punctuation: true, symbols: true, newlinesToSpaces: $("voisonaNewlineMode")?.value === "space" });
   const units = splitJapaneseLyrics(cleaned);
-  const sep = $("voisonaOutputFormat")?.value === "space" ? " " : " / ";
-  $("voisonaSeparatedOutput").value = units.join(sep);
+  $("voisonaSeparatedOutput").value = units.join(" ");
 }
 
 function getVoisonaProjectData() {
@@ -234,7 +233,6 @@ function getVoisonaProjectData() {
     hiraganaLyrics: $("voisonaHiraganaLyrics")?.value || "",
     chatGptPrompt: $("voisonaChatGptPrompt")?.value || "",
     cleanedLyrics: applyVoisonaCleanup(getVoisonaEditableText(), { brackets: true, punctuation: true, symbols: true, newlinesToSpaces: $("voisonaNewlineMode")?.value === "space" }),
-    outputFormat: $("voisonaOutputFormat")?.value || "slash",
     newlineMode: $("voisonaNewlineMode")?.value || "keep",
     cleanupOnConvert: $("voisonaCleanupOnConvert")?.checked !== false,
     separatedOutput: $("voisonaSeparatedOutput")?.value || "",
@@ -246,7 +244,6 @@ function setVoisonaProjectData(data) {
   $("voisonaKanjiLyrics").value = data?.kanjiLyrics || "";
   $("voisonaHiraganaLyrics").value = data?.hiraganaLyrics || data?.cleanedLyrics || "";
   if ($("voisonaChatGptPrompt")) $("voisonaChatGptPrompt").value = data?.chatGptPrompt || "";
-  $("voisonaOutputFormat").value = data?.outputFormat || "slash";
   $("voisonaNewlineMode").value = data?.newlineMode || "keep";
   if ($("voisonaCleanupOnConvert")) $("voisonaCleanupOnConvert").checked = data?.cleanupOnConvert !== false;
   updateVoisonaOutput();
@@ -274,7 +271,7 @@ function setupVoisonaEvents() {
   $("voisonaNormalizeLinesButton").addEventListener("click", () => { $("voisonaHiraganaLyrics").value = applyVoisonaCleanup(getVoisonaEditableText(), { newlinesToSpaces: $("voisonaNewlineMode").value === "space" }); updateVoisonaOutput(); scheduleAutoSave(); showToast("改行を整理しました"); });
   $("voisonaNormalizeSpacesButton").addEventListener("click", () => { $("voisonaHiraganaLyrics").value = normalizeVoisonaSpaces(getVoisonaEditableText()); updateVoisonaOutput(); scheduleAutoSave(); showToast("空白を整理しました"); });
   $("voisonaSendToMidiButton").addEventListener("click", () => { $("midiLyricsInput").value = applyVoisonaCleanup(getVoisonaEditableText(), { brackets: true, punctuation: true, symbols: true, newlinesToSpaces: true }); updateMidiLyricsAllocation(); scheduleAutoSave(); showToast("MIDI歌詞割り当て補助へ送りました"); });
-  ["voisonaKanjiLyrics", "voisonaHiraganaLyrics", "voisonaChatGptPrompt", "voisonaOutputFormat", "voisonaNewlineMode", "voisonaCleanupOnConvert"].forEach((id) => $(id).addEventListener("input", () => { updateVoisonaOutput(); scheduleAutoSave(); }));
+  ["voisonaKanjiLyrics", "voisonaHiraganaLyrics", "voisonaChatGptPrompt", "voisonaNewlineMode", "voisonaCleanupOnConvert"].forEach((id) => $(id).addEventListener("input", () => { updateVoisonaOutput(); scheduleAutoSave(); }));
 }
 
 function updateMidiLyricsAllocation(resetEditor = true) {
@@ -430,7 +427,7 @@ function buildMidiVoisonaPasteOutput(showMessage = true) {
   ensureMidiEditorShape();
   updateMidiVoisonaPasteOutputs();
   scheduleAutoSave();
-  if (showMessage) showToast("VoiSonaコピー用出力を作りました");
+  if (showMessage) showToast("VoiSona貼り付け用出力を作りました");
 }
 
 function updateMidiOverflowDisplay() {
