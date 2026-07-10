@@ -73,7 +73,20 @@ button.primary, .file-button { background: var(--blue-dark); color: #fff; } butt
 .measure-item { display: flex; justify-content: space-between; gap: 10px; border: 1px solid var(--line); background: #fff; border-radius: 14px; padding: 10px 12px; font-weight: 800; }
 .full-span { grid-column: 1 / -1; }
 #midiLyricsOutput { font-size: 1.08rem; background: #fff; }
+.midi-note-editor { display: grid; gap: 16px; margin-top: 18px; }
+.editor-heading { display: grid; gap: 14px; }
+.editor-heading h4 { margin: 0 0 8px; color: var(--blue-dark); font-size: 1.25rem; }
+.editor-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.midi-note-editor-grid { display: grid; gap: 16px; }
+.midi-measure-card { border: 1px solid var(--line); border-radius: 20px; background: #fff; padding: 16px; }
+.midi-measure-card h5 { margin: 0 0 14px; color: #314255; font-size: 1.12rem; }
+.midi-note-inputs { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; }
+.midi-note-cell { flex: 1 1 92px; max-width: 150px; min-width: 80px; gap: 6px; font-size: .95rem; }
+.midi-note-cell span { color: var(--muted); }
+.midi-note-cell input { min-height: 58px; padding: 12px 14px; border-radius: 16px; font-size: 1.12rem; text-align: center; background: #fbfdff; }
+.empty-editor-message { margin: 0; border: 1px dashed var(--line); border-radius: 16px; padding: 16px; color: var(--muted); font-weight: 800; background: #fff; }
 @media (max-width: 760px) { .midi-card-grid { grid-template-columns: 1fr; } .sub-card { padding: 16px; } .inline-option { align-items: flex-start; } }
+@media (max-width: 760px) { .editor-actions { grid-template-columns: 1fr; } .midi-note-cell { flex-basis: 86px; max-width: none; } }
 
 .checklist { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .check-item { display: flex; align-items: center; gap: 12px; padding: 16px; border: 1px solid var(--line); border-radius: 18px; background: #f8fbfd; font-weight: 800; }
