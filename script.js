@@ -16,10 +16,12 @@ const checklistItems = ["AIで曲を作る", "ステム分離する", "Logic Pro
 const lyricLabels = { lyricsIntro: "イントロ", lyricsVerseA: "Aメロ", lyricsVerseB: "Bメロ", lyricsChorus: "サビ", lyricsInterlude: "間奏", lyricsFinalChorus: "ラスサビ" };
 const fieldIds = ["title", ...Object.keys(selectOptions), ...Object.values(otherFieldMap), "reference", ...Object.keys(lyricLabels), "promptJa", "promptEn"];
 const voisonaBrackets = /[「」『』（）]/g;
-const voisonaPunctuation = /[、。，．]/g;
+const voisonaPunctuation = /[、。]/g;
 const voisonaSymbols = /[!！?？…・♪♡☆★\-—〜~]/g;
 let midiState = null;
-let voisonaTokenizerLoading = false;
+let kuroshiroInstance = null;
+let isKuroshiroReady = false;
+let isKuroshiroLoading = false;
 
 class MidiReader {
   constructor(buffer) { this.view = new DataView(buffer); this.pos = 0; }
@@ -148,49 +150,70 @@ function splitJapaneseLyrics(text) {
   return units;
 }
 
-function setVoisonaTokenizerStatus(message, state = "loading") {
-  const status = $("voisonaTokenizerStatus");
+function setHiraganaStatus(message, state = "loading") {
+  const status = $("hiraganaStatus");
   if (!status) return;
   status.textContent = message;
   status.classList.toggle("is-loading", state === "loading");
   status.classList.toggle("is-error", state === "error");
+  status.classList.toggle("is-ready", state === "ready");
 }
 
-function initVoisonaTokenizer() {
-  if (window.voisonaTokenizer || voisonaTokenizerLoading) return;
-  if (!window.kuromoji?.builder) {
-    setVoisonaTokenizerStatus("kuromoji.jsを読み込めませんでした", "error");
-    return;
-  }
-  voisonaTokenizerLoading = true;
-  setVoisonaTokenizerStatus("変換準備中", "loading");
-  window.kuromoji.builder({
-    dicPath: "https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/dict/"
-  }).build(function (err, tokenizer) {
-    voisonaTokenizerLoading = false;
-    if (err) {
-      console.error(err);
-      setVoisonaTokenizerStatus("ひらがな変換の準備に失敗しました", "error");
-      return;
+function setHiraganaButtonEnabled(enabled) {
+  const button = $("voisonaConvertButton");
+  if (button) button.disabled = !enabled;
+}
+
+async function setupKuroshiro() {
+  if (isKuroshiroReady || isKuroshiroLoading) return;
+
+  try {
+    isKuroshiroLoading = true;
+    isKuroshiroReady = false;
+    setHiraganaStatus("ひらがな変換を準備中です...", "loading");
+    setHiraganaButtonEnabled(false);
+
+    if (typeof Kuroshiro === "undefined" || typeof KuromojiAnalyzer === "undefined") {
+      throw new Error("Kuroshiro libraries are not loaded");
     }
-    window.voisonaTokenizer = tokenizer;
-    setVoisonaTokenizerStatus("ひらがな変換できます", "ready");
-  });
+
+    kuroshiroInstance = new Kuroshiro();
+    await kuroshiroInstance.init(new KuromojiAnalyzer({
+      dictPath: "https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/dict/"
+    }));
+
+    isKuroshiroReady = true;
+    setHiraganaStatus("ひらがな変換できます", "ready");
+    setHiraganaButtonEnabled(true);
+  } catch (error) {
+    console.error(error);
+    kuroshiroInstance = null;
+    isKuroshiroReady = false;
+    setHiraganaStatus("ひらがな変換ライブラリの読み込みに失敗しました", "error");
+    setHiraganaButtonEnabled(false);
+  } finally {
+    isKuroshiroLoading = false;
+  }
 }
 
-function katakanaToHiragana(text) {
-  return text.replace(/[\u30a1-\u30f6]/g, function(match) {
-    return String.fromCharCode(match.charCodeAt(0) - 0x60);
-  });
-}
+async function convertLyricsToHiragana(input, options = {}) {
+  if (!isKuroshiroReady || !kuroshiroInstance) {
+    alert("ひらがな変換の準備がまだできていません。少し待ってからもう一度押してください。");
+    return null;
+  }
 
-function convertKanjiToHiragana(text, options = {}) {
-  if (!window.voisonaTokenizer) return null;
-  const converted = window.voisonaTokenizer.tokenize(text).map((token) => {
-    const reading = token.reading || token.surface_form || "";
-    return katakanaToHiragana(reading);
-  }).join("");
-  return applyVoisonaCleanup(converted, options);
+  try {
+    const converted = await kuroshiroInstance.convert(input, {
+      to: "hiragana",
+      mode: "normal"
+    });
+
+    return applyVoisonaCleanup(converted, options);
+  } catch (error) {
+    console.error(error);
+    alert("ひらがな変換に失敗しました。");
+    return null;
+  }
 }
 
 function normalizeVoisonaSpaces(text) {
@@ -243,14 +266,14 @@ function setVoisonaProjectData(data) {
 
 function setupVoisonaEvents() {
   if (!$("voisonaKanjiLyrics")) return;
-  $("voisonaConvertButton").addEventListener("click", () => {
+  $("voisonaConvertButton").addEventListener("click", async () => {
     const shouldCleanup = $("voisonaCleanupOnConvert")?.checked !== false;
-    const converted = convertKanjiToHiragana($("voisonaKanjiLyrics").value, { brackets: shouldCleanup, punctuation: shouldCleanup, symbols: shouldCleanup, newlinesToSpaces: $("voisonaNewlineMode").value === "space" });
-    if (converted === null) { initVoisonaTokenizer(); showToast("変換準備中です。少し待ってから再度お試しください"); return; }
+    const converted = await convertLyricsToHiragana($("voisonaKanjiLyrics").value, { brackets: shouldCleanup, punctuation: shouldCleanup, symbols: shouldCleanup, newlinesToSpaces: $("voisonaNewlineMode").value === "space" });
+    if (converted === null) return;
     $("voisonaHiraganaLyrics").value = converted;
     updateVoisonaOutput();
     scheduleAutoSave();
-    showToast("kuromojiでひらがな変換しました");
+    showToast("Kuroshiroでひらがな変換しました");
   });
   $("voisonaRemoveSymbolsButton").addEventListener("click", () => { $("voisonaHiraganaLyrics").value = applyVoisonaCleanup(getVoisonaEditableText(), { brackets: true, punctuation: true, symbols: true, newlinesToSpaces: $("voisonaNewlineMode").value === "space" }); updateVoisonaOutput(); scheduleAutoSave(); showToast("記号を整理しました"); });
   $("voisonaRemoveBracketsButton").addEventListener("click", () => { $("voisonaHiraganaLyrics").value = applyVoisonaCleanup(getVoisonaEditableText(), { brackets: true }); updateVoisonaOutput(); scheduleAutoSave(); showToast("鍵かっこを省きました"); });
@@ -487,5 +510,5 @@ function setupEvents() {
   $("saveButton").addEventListener("click", () => saveProject(true)); $("exportButton").addEventListener("click", exportJson); $("importFile").addEventListener("change", importJson); $("resetButton").addEventListener("click", resetProject); $("generateButton").addEventListener("click", generatePrompts);
 }
 
-function init() { fillSelects(); $("bpm").value = "120"; renderChecklist(); loadProject(); Object.keys(otherFieldMap).forEach(updateOtherVisibility); setupEvents(); initVoisonaTokenizer(); }
+function init() { fillSelects(); $("bpm").value = "120"; renderChecklist(); loadProject(); Object.keys(otherFieldMap).forEach(updateOtherVisibility); setupEvents(); setupKuroshiro(); }
 document.addEventListener("DOMContentLoaded", init);
