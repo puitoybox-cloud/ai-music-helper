@@ -147,8 +147,47 @@
       <p class="total-count">歌詞合計：<strong id="lyricsTotalCount">0文字</strong></p>
     </section>
 
+
+    <section class="card midi-helper-card" aria-labelledby="midi-lyrics-title">
+      <div class="section-heading"><span>03</span><div><h2 id="midi-lyrics-title">MIDI歌詞割り当て補助</h2><p>VoiSonaに歌詞を入れやすいように、歌メロMIDIの小節ごとの音符数に合わせてひらがな歌詞を分けます。</p></div></div>
+      <div class="midi-card-grid">
+        <div class="sub-card">
+          <h3>MIDI読み込み</h3>
+          <p class="helper-text">歌メロだけのStandard MIDI File（.mid / .midi）を選んでください。複数トラックの場合は歌メロに使うトラックを選べます。</p>
+          <label class="file-button midi-file-button" for="midiFile">MIDIファイルを選択</label>
+          <input type="file" id="midiFile" accept=".mid,.midi,audio/midi,audio/x-midi" />
+          <p id="midiFileName" class="midi-file-name">未選択</p>
+          <div class="grid two-columns compact-grid">
+            <label>歌メロトラック<select id="midiTrackSelect" disabled><option value="">MIDI読み込み後に選択</option></select></label>
+            <label>区切り表示<select id="midiOutputSeparator"><option value="slash">スラッシュ（ / ）</option><option value="space">スペース</option></select></label>
+          </div>
+          <div class="option-row" aria-label="歌詞分割オプション">
+            <label class="inline-option"><input id="midiCombineSmallYoon" type="checkbox" checked /> 小さいゃゅょを前の文字と1音にする</label>
+            <label class="inline-option"><input id="midiLongVowelMode" type="checkbox" /> 伸ばし棒「ー」を前の音にまとめる</label>
+            <label class="inline-option"><input id="midiSmallTsuMode" type="checkbox" checked /> 小さい「っ」を1音にする</label>
+          </div>
+          <div id="midiWarning" class="warning-box" hidden></div>
+        </div>
+
+        <div class="sub-card">
+          <h3>解析結果</h3>
+          <div id="midiSummary" class="midi-summary">MIDIを読み込むと、BPM・拍子・トラック別音符数・小節ごとの音符数を表示します。</div>
+          <div id="midiMeasureCounts" class="measure-list" aria-live="polite"></div>
+        </div>
+
+        <div class="sub-card full-span">
+          <h3>歌詞割り当て結果</h3>
+          <label>ひらがな歌詞<textarea id="midiLyricsInput" rows="5" placeholder="例：みらいへはしりだす"></textarea></label>
+          <p class="total-count">歌詞の音数：<strong id="midiLyricsSyllableCount">0音</strong></p>
+          <textarea id="midiLyricsOutput" rows="8" readonly placeholder="MIDIを読み込み、ひらがな歌詞を入力すると小節ごとの割り当て結果が表示されます"></textarea>
+          <button type="button" id="midiCopyResultButton" class="copy-button" data-copy-target="midiLyricsOutput">割り当て結果をコピー</button>
+        </div>
+      </div>
+    </section>
+
+
     <section class="card" aria-labelledby="prompt-title">
-      <div class="section-heading"><span>03</span><div><h2 id="prompt-title">プロンプト生成</h2><p>選択した内容と自由入力、歌詞を反映して日本語・英語プロンプトを生成します。</p></div></div>
+      <div class="section-heading"><span>04</span><div><h2 id="prompt-title">プロンプト生成</h2><p>選択した内容と自由入力、歌詞を反映して日本語・英語プロンプトを生成します。</p></div></div>
       <button type="button" id="generateButton" class="primary wide">日本語・英語プロンプトを生成</button>
       <div class="grid prompt-grid">
         <div><label>日本語プロンプト<textarea id="promptJa" rows="11" readonly placeholder="生成ボタンを押すと表示されます"></textarea></label><button type="button" class="copy-button" data-copy-target="promptJa">日本語をコピー</button></div>
@@ -157,7 +196,7 @@
     </section>
 
     <section class="card" aria-labelledby="checklist-title">
-      <div class="section-heading"><span>04</span><div><h2 id="checklist-title">制作チェックリスト</h2><p>AI制作から書き出しまでの進行状況を保存できます。</p></div></div>
+      <div class="section-heading"><span>05</span><div><h2 id="checklist-title">制作チェックリスト</h2><p>AI制作から書き出しまでの進行状況を保存できます。</p></div></div>
       <div id="checklist" class="checklist" aria-live="polite"></div>
     </section>
   </main>
