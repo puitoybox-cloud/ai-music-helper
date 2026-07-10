@@ -338,8 +338,8 @@ function areNoteEditHistoryStatesEqual(a, b) {
 }
 
 function updateNoteEditHistoryButtons() {
-  const undoButton = $("midiUndoEditorButton");
-  const redoButton = $("midiRedoEditorButton");
+  const undoButton = $("undoNoteEditButton");
+  const redoButton = $("redoNoteEditButton");
   if (undoButton) undoButton.disabled = noteEditHistoryIndex <= 0;
   if (redoButton) redoButton.disabled = noteEditHistoryIndex < 0 || noteEditHistoryIndex >= noteEditHistory.length - 1;
 }
@@ -679,12 +679,12 @@ function setupMidiEvents() {
     scheduleAutoSave();
   });
   $("midiAutoShiftMode").addEventListener("change", scheduleAutoSave);
-  $("midiUndoEditorButton").addEventListener("click", undoNoteEdit);
-  $("midiRedoEditorButton").addEventListener("click", redoNoteEdit);
-  $("midiCompactBlanksButton").addEventListener("click", () => compactMidiEditorBlanks(true));
-  $("midiBuildFromEditorButton").addEventListener("click", () => buildMidiOutputFromEditor(true));
-  $("midiResetEditorButton").addEventListener("click", () => { rebuildMidiEditorFromAuto(false); buildMidiOutputFromEditor(); showToast("編集表を自動分割の内容に戻しました"); });
-  $("midiCopyEditorButton").addEventListener("click", copyMidiEditorContent);
+  $("undoNoteEditButton").addEventListener("click", undoNoteEdit);
+  $("redoNoteEditButton").addEventListener("click", redoNoteEdit);
+  $("compactEmptyNotesButton").addEventListener("click", () => compactMidiEditorBlanks(true));
+  $("buildFromNoteEditorButton").addEventListener("click", () => buildMidiOutputFromEditor(true));
+  $("resetNoteEditorButton").addEventListener("click", () => { rebuildMidiEditorFromAuto(false); buildMidiOutputFromEditor(); showToast("編集表を自動分割の内容に戻しました"); });
+  $("copyNoteEditorButton").addEventListener("click", copyMidiEditorContent);
 }
 
 const $ = (id) => document.getElementById(id);
