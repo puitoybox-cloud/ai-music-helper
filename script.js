@@ -15,6 +15,14 @@ const otherFieldMap = { genre: "genreOther", mood: "moodOther", timeSignature: "
 const checklistItems = ["AIで曲を作る", "ステム分離する", "Logic Proで編集する", "MIDIを作る", "VoiSonaで歌わせる", "RVCまたはApplioで自分の声に変える", "ミックスする", "書き出す"];
 const lyricLabels = { lyricsIntro: "イントロ", lyricsVerseA: "Aメロ", lyricsVerseB: "Bメロ", lyricsChorus: "サビ", lyricsInterlude: "間奏", lyricsFinalChorus: "ラスサビ" };
 const fieldIds = ["title", ...Object.keys(selectOptions), ...Object.values(otherFieldMap), "reference", ...Object.keys(lyricLabels), "promptJa", "promptEn"];
+const voisonaDictionary = {
+  "思い出": "おもいで", "未来": "みらい", "世界": "せかい", "記憶": "きおく", "希望": "きぼう", "奇跡": "きせき", "明日": "あした", "今日": "きょう", "昨日": "きのう", "永遠": "えいえん", "約束": "やくそく",
+  "走る": "はしる", "行く": "いく", "帰る": "かえる", "笑う": "わらう", "泣く": "なく", "生きる": "いきる", "消える": "きえる", "輝く": "かがやく",
+  "夢": "ゆめ", "光": "ひかり", "空": "そら", "星": "ほし", "月": "つき", "風": "かぜ", "君": "きみ", "僕": "ぼく", "私": "わたし", "心": "こころ", "涙": "なみだ", "愛": "あい", "声": "こえ", "歌": "うた", "音": "おと", "今": "いま", "時": "とき",
+};
+const voisonaBrackets = /[「」『』（）]/g;
+const voisonaPunctuation = /[、。，．]/g;
+const voisonaSymbols = /[!！?？…・♪♡☆★\-—〜~]/g;
 let midiState = null;
 
 class MidiReader {
@@ -144,6 +152,70 @@ function splitJapaneseLyrics(text) {
   return units;
 }
 
+function convertKanjiToHiragana(text) {
+  return Object.entries(voisonaDictionary)
+    .sort((a, b) => b[0].length - a[0].length)
+    .reduce((result, [word, reading]) => result.replaceAll(word, reading), text);
+}
+
+function normalizeVoisonaSpaces(text) {
+  return text.split("\n").map((line) => line.replace(/[\t 　]+/g, " ").trim()).join("\n").replace(/\n{3,}/g, "\n\n");
+}
+
+function applyVoisonaCleanup(text, options = {}) {
+  let result = text.normalize("NFKC");
+  if (options.brackets) result = result.replace(voisonaBrackets, "");
+  if (options.punctuation) result = result.replace(voisonaPunctuation, "");
+  if (options.symbols) result = result.replace(voisonaSymbols, "");
+  result = normalizeVoisonaSpaces(result);
+  if (options.newlinesToSpaces) result = result.replace(/\n+/g, " ").replace(/[\t 　]+/g, " ").trim();
+  return result;
+}
+
+function getVoisonaEditableText() {
+  return $("voisonaHiraganaLyrics")?.value || "";
+}
+
+function updateVoisonaOutput() {
+  if (!$("voisonaSeparatedOutput")) return;
+  const cleaned = applyVoisonaCleanup(getVoisonaEditableText(), { brackets: true, punctuation: true, symbols: true, newlinesToSpaces: $("voisonaNewlineMode")?.value === "space" });
+  const units = splitJapaneseLyrics(cleaned);
+  const sep = $("voisonaOutputFormat")?.value === "space" ? " " : " / ";
+  $("voisonaSeparatedOutput").value = units.join(sep);
+}
+
+function getVoisonaProjectData() {
+  return {
+    kanjiLyrics: $("voisonaKanjiLyrics")?.value || "",
+    hiraganaLyrics: $("voisonaHiraganaLyrics")?.value || "",
+    cleanedLyrics: applyVoisonaCleanup(getVoisonaEditableText(), { brackets: true, punctuation: true, symbols: true, newlinesToSpaces: $("voisonaNewlineMode")?.value === "space" }),
+    outputFormat: $("voisonaOutputFormat")?.value || "slash",
+    newlineMode: $("voisonaNewlineMode")?.value || "keep",
+    separatedOutput: $("voisonaSeparatedOutput")?.value || "",
+  };
+}
+
+function setVoisonaProjectData(data) {
+  if (!$("voisonaKanjiLyrics")) return;
+  $("voisonaKanjiLyrics").value = data?.kanjiLyrics || "";
+  $("voisonaHiraganaLyrics").value = data?.hiraganaLyrics || data?.cleanedLyrics || "";
+  $("voisonaOutputFormat").value = data?.outputFormat || "slash";
+  $("voisonaNewlineMode").value = data?.newlineMode || "keep";
+  updateVoisonaOutput();
+}
+
+function setupVoisonaEvents() {
+  if (!$("voisonaKanjiLyrics")) return;
+  $("voisonaConvertButton").addEventListener("click", () => { $("voisonaHiraganaLyrics").value = convertKanjiToHiragana($("voisonaKanjiLyrics").value); updateVoisonaOutput(); scheduleAutoSave(); showToast("簡易ひらがな変換しました"); });
+  $("voisonaRemoveSymbolsButton").addEventListener("click", () => { $("voisonaHiraganaLyrics").value = applyVoisonaCleanup(getVoisonaEditableText(), { brackets: true, punctuation: true, symbols: true, newlinesToSpaces: $("voisonaNewlineMode").value === "space" }); updateVoisonaOutput(); scheduleAutoSave(); showToast("記号を整理しました"); });
+  $("voisonaRemoveBracketsButton").addEventListener("click", () => { $("voisonaHiraganaLyrics").value = applyVoisonaCleanup(getVoisonaEditableText(), { brackets: true }); updateVoisonaOutput(); scheduleAutoSave(); showToast("鍵かっこを省きました"); });
+  $("voisonaRemovePunctuationButton").addEventListener("click", () => { $("voisonaHiraganaLyrics").value = applyVoisonaCleanup(getVoisonaEditableText(), { punctuation: true }); updateVoisonaOutput(); scheduleAutoSave(); showToast("句読点を省きました"); });
+  $("voisonaNormalizeLinesButton").addEventListener("click", () => { $("voisonaHiraganaLyrics").value = applyVoisonaCleanup(getVoisonaEditableText(), { newlinesToSpaces: $("voisonaNewlineMode").value === "space" }); updateVoisonaOutput(); scheduleAutoSave(); showToast("改行を整理しました"); });
+  $("voisonaNormalizeSpacesButton").addEventListener("click", () => { $("voisonaHiraganaLyrics").value = normalizeVoisonaSpaces(getVoisonaEditableText()); updateVoisonaOutput(); scheduleAutoSave(); showToast("空白を整理しました"); });
+  $("voisonaSendToMidiButton").addEventListener("click", () => { $("midiLyricsInput").value = applyVoisonaCleanup(getVoisonaEditableText(), { brackets: true, punctuation: true, symbols: true, newlinesToSpaces: true }); updateMidiLyricsAllocation(); scheduleAutoSave(); showToast("MIDI歌詞割り当て補助へ送りました"); });
+  ["voisonaKanjiLyrics", "voisonaHiraganaLyrics", "voisonaOutputFormat", "voisonaNewlineMode"].forEach((id) => $(id).addEventListener("input", () => { updateVoisonaOutput(); scheduleAutoSave(); }));
+}
+
 function updateMidiLyricsAllocation() {
   const units = splitJapaneseLyrics($("midiLyricsInput")?.value || "");
   $("midiLyricsSyllableCount").textContent = `${units.length}音`;
@@ -171,6 +243,7 @@ function getMidiProjectData() {
     longVowelCombine: Boolean($("midiLongVowelMode")?.checked),
     smallTsuCount: Boolean($("midiSmallTsuMode")?.checked),
     selectedTrack: $("midiTrackSelect")?.value || "",
+    allocationOutput: $("midiLyricsOutput")?.value || "",
     state: serializeMidiState(),
   };
 }
@@ -261,7 +334,7 @@ function updateLyricCounts() {
 function getProjectData() {
   const fields = Object.fromEntries(fieldIds.map((id) => [id, $(id).value]));
   const checklist = checklistItems.map((_, index) => $(`check-${index}`).checked);
-  return { appName: "AI Music Helper", version: 3, savedAt: new Date().toISOString(), fields, checklist, midi: getMidiProjectData() };
+  return { appName: "AI Music Helper", version: 4, savedAt: new Date().toISOString(), fields, checklist, voisona: getVoisonaProjectData(), midi: getMidiProjectData() };
 }
 
 function setProjectData(data) {
@@ -273,6 +346,7 @@ function setProjectData(data) {
   Object.keys(otherFieldMap).forEach(updateOtherVisibility);
   const checklist = Array.isArray(data?.checklist) ? data.checklist : [];
   checklistItems.forEach((_, index) => { $(`check-${index}`).checked = Boolean(checklist[index]); });
+  setVoisonaProjectData(data?.voisona);
   setMidiProjectData(data?.midi);
   updateLyricCounts();
 }
@@ -342,6 +416,7 @@ function importJson(event) {
 function resetProject() {
   if (!window.confirm("入力内容とチェック状態をリセットしますか？")) return;
   fieldIds.forEach((id) => { if ($(id)) $(id).value = ""; });
+  setVoisonaProjectData(null);
   clearMidiProjectData();
   $("key").selectedIndex = 0; $("bpm").selectedIndex = 6;
   Object.keys(otherFieldMap).forEach(updateOtherVisibility);
@@ -362,6 +437,7 @@ function setupEvents() {
   Object.keys(selectOptions).forEach((id) => $(id).addEventListener("change", () => { updateOtherVisibility(id); scheduleAutoSave(); }));
   checklistItems.forEach((_, index) => $(`check-${index}`).addEventListener("change", scheduleAutoSave));
   document.querySelectorAll(".copy-button").forEach((button) => button.addEventListener("click", () => copyPrompt(button.dataset.copyTarget)));
+  setupVoisonaEvents();
   setupMidiEvents();
   $("saveButton").addEventListener("click", () => saveProject(true)); $("exportButton").addEventListener("click", exportJson); $("importFile").addEventListener("change", importJson); $("resetButton").addEventListener("click", resetProject); $("generateButton").addEventListener("click", generatePrompts);
 }
