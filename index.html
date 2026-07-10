@@ -228,8 +228,10 @@
                 <label class="inline-option midi-auto-shift-option"><input id="midiAutoShiftMode" type="checkbox" /> <span><strong>自動前詰め編集モード</strong><small>ON：空欄を作ると編集表全体で後ろの歌詞を前に詰めます。追加時は後ろへ送り、あふれた歌詞に表示します。</small></span></label>
               </div>
               <div class="editor-actions">
-                <button type="button" id="midiBuildFromEditorButton" class="primary">編集表からVoiSona出力を作る</button>
+                <button type="button" id="midiUndoEditorButton" disabled>一個戻る</button>
+                <button type="button" id="midiRedoEditorButton" disabled>一個進む</button>
                 <button type="button" id="midiCompactBlanksButton">空欄を詰める</button>
+                <button type="button" id="midiBuildFromEditorButton" class="primary">編集表からVoiSona出力を作る</button>
                 <button type="button" id="midiResetEditorButton">編集表をリセットする</button>
                 <button type="button" id="midiCopyEditorButton">編集表の内容をコピーする</button>
               </div>
