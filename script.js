@@ -159,6 +159,16 @@ function setHiraganaStatus(message, state = "loading") {
   status.classList.toggle("is-ready", state === "ready");
 }
 
+function appendHiraganaStatus(message, state = "loading") {
+  const status = $("hiraganaStatus");
+  if (!status) return;
+  status.textContent = status.textContent ? `${status.textContent}
+${message}` : message;
+  status.classList.toggle("is-loading", state === "loading");
+  status.classList.toggle("is-error", state === "error");
+  status.classList.toggle("is-ready", state === "ready");
+}
+
 function setHiraganaButtonEnabled(enabled) {
   const button = $("voisonaConvertButton");
   if (button) button.disabled = !enabled;
@@ -170,26 +180,36 @@ async function setupKuroshiro() {
   try {
     isKuroshiroLoading = true;
     isKuroshiroReady = false;
-    setHiraganaStatus("ひらがな変換を準備中です...", "loading");
+    setHiraganaStatus("Kuroshiro読み込み中", "loading");
     setHiraganaButtonEnabled(false);
 
-    if (typeof Kuroshiro === "undefined" || typeof KuromojiAnalyzer === "undefined") {
-      throw new Error("Kuroshiro libraries are not loaded");
-    }
+    const KuroshiroCtor = window.Kuroshiro?.default || window.Kuroshiro;
+    const KuromojiAnalyzerCtor = window.KuromojiAnalyzer?.default || window.KuromojiAnalyzer;
 
-    kuroshiroInstance = new Kuroshiro();
-    await kuroshiroInstance.init(new KuromojiAnalyzer({
+    if (!KuroshiroCtor) {
+      throw new Error("Kuroshiroが読み込まれていません");
+    }
+    appendHiraganaStatus("Kuroshiro本体を確認", "loading");
+
+    if (!KuromojiAnalyzerCtor) {
+      throw new Error("KuromojiAnalyzerが読み込まれていません");
+    }
+    appendHiraganaStatus("KuromojiAnalyzerを確認", "loading");
+
+    const kuroshiro = new KuroshiroCtor();
+    await kuroshiro.init(new KuromojiAnalyzerCtor({
       dictPath: "https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/dict/"
     }));
 
+    kuroshiroInstance = kuroshiro;
     isKuroshiroReady = true;
-    setHiraganaStatus("ひらがな変換できます", "ready");
+    appendHiraganaStatus("ひらがな変換できます", "ready");
     setHiraganaButtonEnabled(true);
   } catch (error) {
     console.error(error);
     kuroshiroInstance = null;
     isKuroshiroReady = false;
-    setHiraganaStatus("ひらがな変換ライブラリの読み込みに失敗しました", "error");
+    appendHiraganaStatus(`変換失敗：${error.message}`, "error");
     setHiraganaButtonEnabled(false);
   } finally {
     isKuroshiroLoading = false;
@@ -198,20 +218,26 @@ async function setupKuroshiro() {
 
 async function convertLyricsToHiragana(input, options = {}) {
   if (!isKuroshiroReady || !kuroshiroInstance) {
-    alert("ひらがな変換の準備がまだできていません。少し待ってからもう一度押してください。");
+    const message = "ひらがな変換の準備がまだできていません。少し待ってからもう一度押してください。";
+    setHiraganaStatus(`変換失敗：${message}`, "error");
+    alert(message);
     return null;
   }
 
   try {
+    setHiraganaStatus("変換中です", "loading");
     const converted = await kuroshiroInstance.convert(input, {
       to: "hiragana",
       mode: "normal"
     });
+    setHiraganaStatus("変換できました", "ready");
 
     return applyVoisonaCleanup(converted, options);
   } catch (error) {
     console.error(error);
-    alert("ひらがな変換に失敗しました。");
+    setHiraganaStatus(`変換失敗：${error.message}`, "error");
+    alert(`ひらがな変換に失敗しました。
+${error.message}`);
     return null;
   }
 }

@@ -57,7 +57,7 @@ button.primary, .file-button { background: var(--blue-dark); color: #fff; } butt
 .voisona-format-card textarea { min-height: 180px; }
 #voisonaSeparatedOutput { font-size: 1.08rem; background: #fff; }
 .status-label { margin: 0 0 -8px; color: var(--muted); font-weight: 900; }
-.tokenizer-status { margin: 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 14px; background: #fff; color: var(--blue-dark); font-weight: 900; line-height: 1.6; }
+.tokenizer-status { margin: 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 14px; background: #fff; color: var(--blue-dark); font-weight: 900; line-height: 1.6; white-space: pre-line; }
 .tokenizer-status.is-loading { color: var(--muted); }
 .tokenizer-status.is-ready { color: #276749; background: #f0fff4; border-color: #9ae6b4; }
 .tokenizer-status.is-error { color: #9b2c2c; background: #fff3f3; border-color: #f3b2b2; }
