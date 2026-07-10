@@ -338,7 +338,14 @@ function areNoteEditHistoryStatesEqual(a, b) {
   return Boolean(a && b) && a.signature === b.signature && JSON.stringify(a.flat) === JSON.stringify(b.flat) && JSON.stringify(a.overflow) === JSON.stringify(b.overflow);
 }
 
+function updateNoteEditorFloatingToolbarVisibility() {
+  document.querySelectorAll(".note-editor-floating-toolbar").forEach((toolbar) => {
+    toolbar.hidden = !midiState || !midiEditorData.length;
+  });
+}
+
 function updateNoteEditHistoryButtons() {
+  updateNoteEditorFloatingToolbarVisibility();
   document.querySelectorAll('[data-note-toolbar-action="undo"]').forEach((button) => { button.disabled = noteEditHistoryIndex <= 0; });
   document.querySelectorAll('[data-note-toolbar-action="redo"]').forEach((button) => { button.disabled = noteEditHistoryIndex < 0 || noteEditHistoryIndex >= noteEditHistory.length - 1; });
 }
@@ -738,7 +745,7 @@ function setupMidiEvents() {
     scheduleAutoSave();
   });
   $("midiAutoShiftMode").addEventListener("change", scheduleAutoSave);
-  document.querySelectorAll(".note-editor-toolbar").forEach((toolbar) => {
+  document.querySelectorAll(".note-editor-toolbar, .note-editor-floating-toolbar").forEach((toolbar) => {
     toolbar.addEventListener("click", (event) => {
       const button = event.target.closest("button[data-note-toolbar-action]");
       if (!button) return;

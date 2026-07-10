@@ -15,7 +15,7 @@ body {
   min-height: 100%;
   height: auto;
   overflow: visible;
-  padding-bottom: calc(180px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(240px + env(safe-area-inset-bottom, 0px));
   -webkit-overflow-scrolling: touch;
   font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif;
   color: var(--ink);
@@ -43,7 +43,7 @@ section,
 h1, h2, p { margin-top: 0; } h1 { margin-bottom: 12px; font-size: clamp(2rem, 5vw, 3.5rem); line-height: 1.15; } h2 { margin-bottom: 4px; }
 .lead, .section-heading p { max-width: 820px; color: var(--muted); font-size: 1.03rem; line-height: 1.8; margin-bottom: 0; }
 .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; }
-.app-shell { display: grid; gap: 22px; padding-bottom: calc(42px + env(safe-area-inset-bottom, 0px)); }
+.app-shell { display: grid; gap: 22px; padding-bottom: calc(220px + env(safe-area-inset-bottom, 0px)); }
 .page-end-spacer { height: 220px; }
 .card { background: rgba(255,255,255,.94); border: 1px solid var(--line); border-radius: 28px; box-shadow: var(--shadow); padding: clamp(20px, 4vw, 34px); }
 .note-editor-section,
@@ -91,6 +91,42 @@ button.primary, .file-button { background: var(--blue-dark); color: #fff; } butt
 .note-editor-toolbar-bottom { position: static; margin: 18px 0 0; }
 .note-editor-toolbar button { min-height: 40px; padding: 9px 14px; border-radius: 12px; font-size: 14px; flex: 1 1 160px; }
 .note-editor-toolbar button:disabled { cursor: not-allowed; opacity: .48; background: #eef2f6; color: var(--muted); border-color: var(--line); }
+.note-editor-floating-toolbar {
+  position: fixed;
+  left: 50%;
+  bottom: max(16px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 9999;
+  width: min(96vw, 980px);
+  background: rgba(245, 250, 255, 0.98);
+  border: 1px solid #d8e8f7;
+  border-radius: 18px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
+  padding: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  align-items: center;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.note-editor-floating-toolbar[hidden] { display: none; }
+.note-editor-floating-toolbar button {
+  min-height: 44px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-size: 15px;
+  flex: 1 1 140px;
+}
+.note-editor-floating-toolbar [data-note-toolbar-action="compact"] { background: #fff8e8; color: #8a5a00; border: 1px solid #f6c36b; }
+.note-editor-floating-toolbar [data-note-toolbar-action="undo"],
+.note-editor-floating-toolbar [data-note-toolbar-action="redo"] { background: #eef8ff; color: var(--blue-dark); border: 1px solid var(--line); }
+.note-editor-floating-toolbar [data-note-toolbar-action="undo"]:disabled,
+.note-editor-floating-toolbar [data-note-toolbar-action="redo"]:disabled { background: #eef2f6; color: var(--muted); border-color: var(--line); }
+@supports (padding-bottom: max(0px)) {
+  .note-editor-floating-toolbar { bottom: max(16px, env(safe-area-inset-bottom, 0px)); }
+}
 .midi-note-editor-grid,
 .note-editor-grid { display: grid; gap: 16px; max-width: 100%; overflow: visible; }
 .midi-measure-card,
@@ -107,7 +143,7 @@ button.primary, .file-button { background: var(--blue-dark); color: #fff; } butt
 .note-input { min-width: 72px; max-width: 140px; min-height: 44px; padding: 12px 14px; border-radius: 16px; font-size: 18px; text-align: center; background: #fbfdff; ime-mode: active; }
 .empty-editor-message { margin: 0; border: 1px dashed var(--line); border-radius: 16px; padding: 16px; color: var(--muted); font-weight: 800; background: #fff; }
 @media (max-width: 760px) { .midi-card-grid { grid-template-columns: 1fr; } .sub-card { padding: 16px; } .inline-option { align-items: flex-start; } }
-@media (max-width: 760px) { .note-editor-toolbar button { flex-basis: 100%; } .midi-note-cell, .note-cell { flex-basis: 86px; max-width: 140px; } }
+@media (max-width: 760px) { .note-editor-toolbar button, .note-editor-floating-toolbar button { flex-basis: 100%; } .midi-note-cell, .note-cell { flex-basis: 86px; max-width: 140px; } }
 
 .checklist { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .check-item { display: flex; align-items: center; gap: 12px; padding: 16px; border: 1px solid var(--line); border-radius: 18px; background: #f8fbfd; font-weight: 800; }
