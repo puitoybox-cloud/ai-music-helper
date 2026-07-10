@@ -82,9 +82,9 @@ button.primary, .file-button { background: var(--blue-dark); color: #fff; } butt
 .midi-note-editor { display: grid; gap: 16px; margin-top: 18px; }
 .editor-heading { display: grid; gap: 14px; }
 .editor-heading h4 { margin: 0 0 8px; color: var(--blue-dark); font-size: 1.25rem; }
-.editor-actions { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
-.editor-actions button { min-height: 56px; padding: 14px 16px; }
-.editor-actions button:disabled { cursor: not-allowed; opacity: .48; background: #eef2f6; color: var(--muted); border-color: var(--line); }
+.note-editor-toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0 18px; align-items: stretch; }
+.note-editor-toolbar button { min-height: 44px; padding: 10px 16px; border-radius: 12px; font-size: 15px; flex: 1 1 170px; }
+.note-editor-toolbar button:disabled { cursor: not-allowed; opacity: .48; background: #eef2f6; color: var(--muted); border-color: var(--line); }
 .midi-note-editor-grid,
 .note-editor-grid { display: grid; gap: 16px; max-width: 100%; overflow: visible; }
 .midi-measure-card,
@@ -101,7 +101,7 @@ button.primary, .file-button { background: var(--blue-dark); color: #fff; } butt
 .note-input { min-width: 72px; max-width: 140px; min-height: 58px; padding: 12px 14px; border-radius: 16px; font-size: 1.12rem; text-align: center; background: #fbfdff; }
 .empty-editor-message { margin: 0; border: 1px dashed var(--line); border-radius: 16px; padding: 16px; color: var(--muted); font-weight: 800; background: #fff; }
 @media (max-width: 760px) { .midi-card-grid { grid-template-columns: 1fr; } .sub-card { padding: 16px; } .inline-option { align-items: flex-start; } }
-@media (max-width: 760px) { .editor-actions { grid-template-columns: 1fr; } .midi-note-cell, .note-cell { flex-basis: 86px; max-width: 140px; } }
+@media (max-width: 760px) { .note-editor-toolbar button { flex-basis: 100%; } .midi-note-cell, .note-cell { flex-basis: 86px; max-width: 140px; } }
 
 .checklist { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .check-item { display: flex; align-items: center; gap: 12px; padding: 16px; border: 1px solid var(--line); border-radius: 18px; background: #f8fbfd; font-weight: 800; }
@@ -138,8 +138,8 @@ button.primary, .file-button { background: var(--blue-dark); color: #fff; } butt
 
 .midi-auto-shift-option span { display: grid; gap: 4px; line-height: 1.5; }
 .midi-auto-shift-option small { display: block; color: var(--blue-dark); font-weight: 800; text-align: left; line-height: 1.5; }
-#midiCompactBlanksButton { background: #fff8e8; color: #8a5a00; border: 1px solid #f6c36b; }
+#compactEmptyNotesButton { background: #fff8e8; color: #8a5a00; border: 1px solid #f6c36b; }
 
-#midiUndoEditorButton, #midiRedoEditorButton { background: #eef8ff; color: var(--blue-dark); border: 1px solid var(--line); }
-.editor-actions #midiUndoEditorButton:disabled,
-.editor-actions #midiRedoEditorButton:disabled { background: #eef2f6; color: var(--muted); border-color: var(--line); }
+#undoNoteEditButton, #redoNoteEditButton { background: #eef8ff; color: var(--blue-dark); border: 1px solid var(--line); }
+.note-editor-toolbar #undoNoteEditButton:disabled,
+.note-editor-toolbar #redoNoteEditButton:disabled { background: #eef2f6; color: var(--muted); border-color: var(--line); }
