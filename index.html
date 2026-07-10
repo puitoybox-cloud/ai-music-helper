@@ -225,6 +225,7 @@
               <div>
                 <h4 id="midi-note-editor-title">音符ごとの編集表</h4>
                 <p class="helper-text">自動分割した歌詞を、1音符ごとに手で直せます。1つの欄に「きゃ」「だい」「つた」など複数文字を入れたり、空欄にしたりできます。</p>
+                <label class="inline-option midi-auto-shift-option"><input id="midiAutoShiftMode" type="checkbox" /> 自動前詰め編集モード（削除・追加で後続の歌詞を前後にずらす）</label>
               </div>
               <div class="editor-actions">
                 <button type="button" id="midiBuildFromEditorButton" class="primary">編集表からVoiSona出力を作る</button>
@@ -232,6 +233,7 @@
                 <button type="button" id="midiCopyEditorButton">編集表の内容をコピーする</button>
               </div>
             </div>
+            <div id="midiOverflowLyrics" class="midi-overflow-lyrics" hidden></div>
             <div id="midiNoteEditor" class="midi-note-editor-grid" aria-live="polite"></div>
           </div>
         </div>

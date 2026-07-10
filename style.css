@@ -122,3 +122,14 @@ button.primary, .file-button { background: var(--blue-dark); color: #fff; } butt
 #voisonaChatGptPrompt { min-height: 260px; background: #fff; }
 .voisona-format-card .button-grid button:last-child:nth-child(odd) { grid-column: 1 / -1; }
 @media (pointer: coarse) { button, .file-button { min-height: 60px; padding: 16px 20px; } }
+.midi-auto-shift-option { background: #eef8ff; color: var(--blue-dark); }
+.midi-overflow-lyrics { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; border: 1px solid #f6c36b; background: #fff8e8; color: #8a5a00; border-radius: 16px; padding: 12px 14px; font-weight: 900; line-height: 1.7; }
+.midi-overflow-lyrics[hidden] { display: none; }
+.midi-note-cell { position: relative; padding: 8px; border: 1px solid transparent; border-radius: 16px; }
+.midi-note-cell.is-selected { border-color: var(--blue); background: #eef8ff; box-shadow: 0 8px 18px rgba(43, 108, 176, 0.12); }
+.note-cell-actions { display: none; grid-template-columns: 1fr; gap: 6px; margin-top: 6px; }
+.midi-note-cell.is-selected .note-cell-actions { display: grid; }
+.note-cell-actions button { min-height: 38px; border-radius: 12px; padding: 8px 10px; font-size: .78rem; line-height: 1.25; background: #e8eef4; }
+.note-cell-actions button:first-child { background: var(--soft); color: var(--blue-dark); border: 1px solid var(--line); }
+@media (pointer: coarse) { .note-cell-actions button { min-height: 44px; font-size: .82rem; } }
+@media (max-width: 760px) { .midi-note-cell, .note-cell { flex-basis: min(48%, 180px); max-width: 180px; } .note-cell-actions button { font-size: .76rem; } }
