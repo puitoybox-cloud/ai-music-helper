@@ -218,8 +218,27 @@
           <h3>歌詞割り当て結果</h3>
           <label>ひらがな歌詞<textarea id="midiLyricsInput" rows="5" placeholder="例：みらいへはしりだす"></textarea></label>
           <p class="total-count">歌詞の音数：<strong id="midiLyricsSyllableCount">0音</strong></p>
-          <textarea id="midiLyricsOutput" rows="8" readonly placeholder="MIDIを読み込み、ひらがな歌詞を入力すると小節ごとの割り当て結果が表示されます"></textarea>
-          <button type="button" id="midiCopyResultButton" class="copy-button" data-copy-target="midiLyricsOutput">割り当て結果をコピー</button>
+          <label>小節ごとの確認用<textarea id="midiLyricsOutput" rows="8" readonly placeholder="MIDIを読み込み、ひらがな歌詞を入力すると小節ごとの割り当て結果が表示されます"></textarea></label>
+          <button type="button" id="midiCopyResultButton" class="copy-button" data-copy-target="midiLyricsOutput">確認用表示をコピー</button>
+          <div class="midi-voisona-output" aria-labelledby="midi-voisona-output-title">
+            <div class="editor-heading">
+              <div>
+                <h4 id="midi-voisona-output-title">VoiSona貼り付け用出力</h4>
+                <p class="helper-text">編集表の内容から、小節番号や「小節目：」を除いた歌詞だけのスラッシュ区切り出力を作ります。</p>
+              </div>
+              <button type="button" id="midiBuildVoisonaPasteButton" class="primary">VoiSona貼り付け用出力を作る</button>
+            </div>
+            <div class="midi-voisona-output-grid">
+              <div>
+                <label>VoiSona貼り付け用 改行あり<textarea id="midiVoisonaPasteOutput" rows="7" readonly placeholder="ボタンを押すと、小節番号なしの歌詞だけを小節ごとに改行して表示します"></textarea></label>
+                <button type="button" class="copy-button" data-copy-target="midiVoisonaPasteOutput">改行ありをコピーする</button>
+              </div>
+              <div>
+                <label>VoiSona貼り付け用 1行<textarea id="midiVoisonaPasteOneLineOutput" rows="7" readonly placeholder="ボタンを押すと、小節番号なしの歌詞だけを1行で表示します"></textarea></label>
+                <button type="button" class="copy-button" data-copy-target="midiVoisonaPasteOneLineOutput">1行版をコピーする</button>
+              </div>
+            </div>
+          </div>
           <div class="midi-note-editor note-editor-section" aria-labelledby="midi-note-editor-title">
             <div class="editor-heading">
               <div>
