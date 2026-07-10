@@ -68,6 +68,7 @@ button, .file-button { min-height: 54px; border: 0; border-radius: 18px; padding
 button:disabled { cursor: not-allowed; opacity: .55; transform: none; }
 button.primary, .file-button { background: var(--blue-dark); color: #fff; } button.danger { background: #ffe8e8; color: #9b2c2c; } button.wide { width: 100%; margin-bottom: 18px; } button:active, .file-button:active { transform: translateY(1px); } #importFile { display: none; }
 .copy-button { width: 100%; margin-top: 10px; background: var(--soft); color: var(--blue-dark); border: 1px solid var(--line); }
+.copy-status { min-height: 1.5em; margin: 6px 0 0; color: #276749; font-weight: 900; text-align: right; }
 #midiFile { display: none; }
 .midi-card-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
 .sub-card { border: 1px solid var(--line); border-radius: 22px; background: #f8fcff; padding: 20px; display: grid; gap: 14px; }

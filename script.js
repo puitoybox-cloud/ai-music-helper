@@ -401,7 +401,7 @@ function getFlatIndex(measureIndex, noteIndex) {
 }
 
 function getMidiVoisonaSeparator() {
-  return " / ";
+  return " ";
 }
 
 function getMidiVoisonaPasteOutputs() {
@@ -409,11 +409,8 @@ function getMidiVoisonaPasteOutputs() {
   const lines = midiEditorData
     .map((measure) => measure.lyrics.map((value) => value.trim()).filter(Boolean).join(sep))
     .filter(Boolean);
-  const overflowLine = midiEditorOverflow.map((value) => value.trim()).filter(Boolean).join(sep);
-  if (overflowLine) lines.push(overflowLine);
   const oneLine = midiEditorData
     .flatMap((measure) => measure.lyrics)
-    .concat(midiEditorOverflow)
     .map((value) => value.trim())
     .filter(Boolean)
     .join(sep);
@@ -433,7 +430,7 @@ function buildMidiVoisonaPasteOutput(showMessage = true) {
   ensureMidiEditorShape();
   updateMidiVoisonaPasteOutputs();
   scheduleAutoSave();
-  if (showMessage) showToast("VoiSona貼り付け用出力を作りました");
+  if (showMessage) showToast("VoiSonaコピー用出力を作りました");
 }
 
 function updateMidiOverflowDisplay() {
@@ -666,6 +663,32 @@ function buildMidiOutputFromEditor(showMessage = true) {
   updateMidiVoisonaPasteOutputs();
   scheduleAutoSave();
   if (showMessage) showToast("編集表からVoiSona出力を作りました");
+}
+
+async function copyText(text, statusElement) {
+  if (!text) {
+    if (statusElement) statusElement.textContent = "コピーする内容がありません";
+    showToast("コピーする内容がありません");
+    return;
+  }
+  try {
+    if (!navigator.clipboard?.writeText) throw new Error("Clipboard API is unavailable");
+    await navigator.clipboard.writeText(text);
+    if (statusElement) statusElement.textContent = "コピーしました";
+    showToast("コピーしました");
+  } catch (error) {
+    const temp = document.createElement("textarea");
+    temp.value = text;
+    temp.setAttribute("readonly", "");
+    temp.style.position = "fixed";
+    temp.style.left = "-9999px";
+    document.body.appendChild(temp);
+    temp.select();
+    document.execCommand("copy");
+    document.body.removeChild(temp);
+    if (statusElement) statusElement.textContent = "コピーしました";
+    showToast("コピーしました");
+  }
 }
 
 async function copyMidiEditorContent() {
@@ -915,11 +938,10 @@ function generatePrompts() {
   saveProject(false); showToast("プロンプトを生成しました");
 }
 
-async function copyPrompt(targetId) {
-  const text = $(targetId).value;
-  if (!text) { showToast("コピーするプロンプトがありません"); return; }
-  try { await navigator.clipboard.writeText(text); showToast("コピーしました"); }
-  catch { $(targetId).select(); document.execCommand("copy"); showToast("コピーしました"); }
+async function copyPrompt(targetId, statusId = "") {
+  const target = $(targetId);
+  const statusElement = statusId ? $(statusId) : null;
+  await copyText(target?.value || "", statusElement);
 }
 
 function exportJson() {
@@ -961,7 +983,7 @@ function setupEvents() {
   fieldIds.forEach((id) => { if ($(id)) $(id).addEventListener("input", () => { updateLyricCounts(); scheduleAutoSave(); }); });
   Object.keys(selectOptions).forEach((id) => $(id).addEventListener("change", () => { updateOtherVisibility(id); scheduleAutoSave(); }));
   checklistItems.forEach((_, index) => $(`check-${index}`).addEventListener("change", scheduleAutoSave));
-  document.querySelectorAll(".copy-button").forEach((button) => button.addEventListener("click", () => copyPrompt(button.dataset.copyTarget)));
+  document.querySelectorAll(".copy-button").forEach((button) => button.addEventListener("click", () => copyPrompt(button.dataset.copyTarget, button.dataset.copyStatus)));
   setupVoisonaEvents();
   setupMidiEvents();
   $("saveButton").addEventListener("click", () => saveProject(true)); $("exportButton").addEventListener("click", exportJson); $("importFile").addEventListener("change", importJson); $("resetButton").addEventListener("click", resetProject); $("generateButton").addEventListener("click", generatePrompts);

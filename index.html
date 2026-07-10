@@ -223,19 +223,21 @@
           <div class="midi-voisona-output" aria-labelledby="midi-voisona-output-title">
             <div class="editor-heading">
               <div>
-                <h4 id="midi-voisona-output-title">VoiSona貼り付け用出力</h4>
-                <p class="helper-text">編集表の内容から、小節番号や「小節目：」を除いた歌詞だけのスラッシュ区切り出力を作ります。</p>
+                <h4 id="midi-voisona-output-title">VoiSonaコピー用</h4>
+                <p class="helper-text">音符ごとの編集表の内容だけを使い、小節番号・「小節目」・「：」・「/」を入れず、1音符ごとの歌詞を半角スペース区切りで出力します。空欄は飛ばします。</p>
               </div>
-              <button type="button" id="midiBuildVoisonaPasteButton" class="primary">VoiSona貼り付け用出力を作る</button>
+              <button type="button" id="midiBuildVoisonaPasteButton" class="primary">VoiSonaコピー用出力を作る</button>
             </div>
             <div class="midi-voisona-output-grid">
               <div>
-                <label>VoiSona貼り付け用 改行あり<textarea id="midiVoisonaPasteOutput" rows="7" readonly placeholder="ボタンを押すと、小節番号なしの歌詞だけを小節ごとに改行して表示します"></textarea></label>
-                <button type="button" class="copy-button" data-copy-target="midiVoisonaPasteOutput">改行ありをコピーする</button>
+                <label>VoiSonaコピー用・改行あり<textarea id="midiVoisonaPasteOutput" rows="7" readonly placeholder="編集表の歌詞だけを小節ごとに半角スペース区切りで表示します"></textarea></label>
+                <button type="button" class="copy-button" data-copy-target="midiVoisonaPasteOutput" data-copy-status="midiVoisonaPasteStatus">コピー</button>
+                <p id="midiVoisonaPasteStatus" class="copy-status" aria-live="polite"></p>
               </div>
               <div>
-                <label>VoiSona貼り付け用 1行<textarea id="midiVoisonaPasteOneLineOutput" rows="7" readonly placeholder="ボタンを押すと、小節番号なしの歌詞だけを1行で表示します"></textarea></label>
-                <button type="button" class="copy-button" data-copy-target="midiVoisonaPasteOneLineOutput">1行版をコピーする</button>
+                <label>VoiSonaコピー用・1行<textarea id="midiVoisonaPasteOneLineOutput" rows="7" readonly placeholder="編集表の歌詞だけを1行の半角スペース区切りで表示します"></textarea></label>
+                <button type="button" class="copy-button" data-copy-target="midiVoisonaPasteOneLineOutput" data-copy-status="midiVoisonaPasteOneLineStatus">コピー</button>
+                <p id="midiVoisonaPasteOneLineStatus" class="copy-status" aria-live="polite"></p>
               </div>
             </div>
           </div>
