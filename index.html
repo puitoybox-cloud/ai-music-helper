@@ -10,8 +10,8 @@
   <header class="hero">
     <div>
       <p class="eyebrow">AI Music Helper</p>
-      <h1>音楽制作メモ＆プロンプト作成</h1>
-      <p class="lead">iPadのブラウザで、曲情報・歌詞・制作チェックをまとめて管理できます。保存はこの端末のlocalStorageだけを使います。</p>
+      <h1>AI音楽制作補助ノート</h1>
+      <p class="lead">iPadのブラウザで、プロンプト作成・歌詞整理・曲情報メモ・制作チェックリストをまとめて管理できます。ログイン不要で、保存はこの端末のlocalStorageだけを使います。</p>
     </div>
     <div class="hero-actions" aria-label="保存とファイル操作">
       <button type="button" id="saveButton" class="primary">保存</button>
@@ -23,81 +23,46 @@
   </header>
 
   <main class="app-shell">
-    <section class="card" aria-labelledby="song-info-title">
-      <div class="section-heading">
-        <span>01</span>
-        <h2 id="song-info-title">曲情報</h2>
-      </div>
+    <section class="card" aria-labelledby="basic-title">
+      <div class="section-heading"><span>01</span><div><h2 id="basic-title">基本情報</h2><p>曲の方向性を選択肢で素早く整理します。「その他」は自由入力も反映されます。</p></div></div>
       <div class="grid two-columns">
-        <label>曲名
-          <input id="title" type="text" placeholder="例：夜明けのシグナル" autocomplete="off" />
-        </label>
-        <label>ジャンル
-          <input id="genre" type="text" placeholder="例：J-Pop / Synth Pop" autocomplete="off" />
-        </label>
-        <label>BPM
-          <input id="bpm" type="number" min="1" max="300" inputmode="numeric" placeholder="例：128" />
-        </label>
-        <label>キー
-          <input id="key" type="text" placeholder="例：Cメジャー / A minor" autocomplete="off" />
-        </label>
+        <label>曲名<input id="title" type="text" placeholder="例：夜明けのシグナル" autocomplete="off" /></label>
+        <div class="field-with-other"><label for="genre">ジャンル</label><select id="genre"></select><input id="genreOther" class="other-input" type="text" placeholder="その他のジャンルを入力" /></div>
+        <div class="field-with-other"><label for="mood">曲の雰囲気</label><select id="mood"></select><input id="moodOther" class="other-input" type="text" placeholder="その他の雰囲気を入力" /></div>
+        <label>キー<select id="key"></select></label>
+        <label>BPM目安<select id="bpm"></select></label>
+        <div class="field-with-other"><label for="timeSignature">拍子</label><select id="timeSignature"></select><input id="timeSignatureOther" class="other-input" type="text" placeholder="その他の拍子を入力（例：5/4）" /></div>
+        <div class="field-with-other"><label for="vocalType">ボーカルタイプ</label><select id="vocalType"></select><input id="vocalTypeOther" class="other-input" type="text" placeholder="その他のボーカルタイプを入力" /></div>
+        <div class="field-with-other"><label for="language">使用言語</label><select id="language"></select><input id="languageOther" class="other-input" type="text" placeholder="その他の使用言語を入力" /></div>
+        <label>AI向け出力タイプ<select id="outputType"></select></label>
       </div>
-      <label>曲の雰囲気
-        <textarea id="mood" rows="4" placeholder="例：透明感があり、少し切ないけれど前向き。夜から朝に変わるような空気感。"></textarea>
-      </label>
-      <label>参考イメージ
-        <textarea id="reference" rows="4" placeholder="参考曲、音色、映像、歌声、アレンジの方向性などをメモ"></textarea>
-      </label>
+      <label class="full-field">参考イメージメモ<textarea id="reference" rows="4" placeholder="参考曲、音色、映像、歌声、アレンジの方向性などをメモ"></textarea></label>
     </section>
 
     <section class="card" aria-labelledby="lyrics-title">
-      <div class="section-heading">
-        <span>02</span>
-        <h2 id="lyrics-title">歌詞整理</h2>
-      </div>
+      <div class="section-heading"><span>02</span><div><h2 id="lyrics-title">歌詞</h2><p>パートごとに歌詞を整理できます。文字数は自動で更新されます。</p></div></div>
       <div class="grid lyrics-grid">
-        <label>イントロ
-          <textarea id="lyricsIntro" rows="5" placeholder="イントロの言葉やナレーション"></textarea>
-        </label>
-        <label>Aメロ
-          <textarea id="lyricsVerseA" rows="5" placeholder="Aメロの歌詞"></textarea>
-        </label>
-        <label>Bメロ
-          <textarea id="lyricsVerseB" rows="5" placeholder="Bメロの歌詞"></textarea>
-        </label>
-        <label>サビ
-          <textarea id="lyricsChorus" rows="5" placeholder="サビの歌詞"></textarea>
-        </label>
-        <label>間奏
-          <textarea id="lyricsInterlude" rows="5" placeholder="間奏のメモや歌詞"></textarea>
-        </label>
-        <label>ラスサビ
-          <textarea id="lyricsFinalChorus" rows="5" placeholder="ラスサビの歌詞"></textarea>
-        </label>
+        <label>イントロ<textarea id="lyricsIntro" rows="5" placeholder="イントロの言葉やナレーション"></textarea><small id="lyricsIntroCount">0文字</small></label>
+        <label>Aメロ<textarea id="lyricsVerseA" rows="5" placeholder="Aメロの歌詞"></textarea><small id="lyricsVerseACount">0文字</small></label>
+        <label>Bメロ<textarea id="lyricsVerseB" rows="5" placeholder="Bメロの歌詞"></textarea><small id="lyricsVerseBCount">0文字</small></label>
+        <label>サビ<textarea id="lyricsChorus" rows="5" placeholder="サビの歌詞"></textarea><small id="lyricsChorusCount">0文字</small></label>
+        <label>間奏<textarea id="lyricsInterlude" rows="5" placeholder="間奏のメモや歌詞"></textarea><small id="lyricsInterludeCount">0文字</small></label>
+        <label>ラスサビ<textarea id="lyricsFinalChorus" rows="5" placeholder="ラスサビの歌詞"></textarea><small id="lyricsFinalChorusCount">0文字</small></label>
       </div>
+      <p class="total-count">歌詞合計：<strong id="lyricsTotalCount">0文字</strong></p>
     </section>
 
     <section class="card" aria-labelledby="prompt-title">
-      <div class="section-heading">
-        <span>03</span>
-        <h2 id="prompt-title">AI音楽プロンプト</h2>
-      </div>
+      <div class="section-heading"><span>03</span><div><h2 id="prompt-title">プロンプト生成</h2><p>選択した内容と自由入力、歌詞を反映して日本語・英語プロンプトを生成します。</p></div></div>
       <button type="button" id="generateButton" class="primary wide">日本語・英語プロンプトを生成</button>
       <div class="grid prompt-grid">
-        <label>日本語プロンプト
-          <textarea id="promptJa" rows="10" readonly placeholder="生成ボタンを押すと表示されます"></textarea>
-        </label>
-        <label>English Prompt
-          <textarea id="promptEn" rows="10" readonly placeholder="Press generate to create a prompt"></textarea>
-        </label>
+        <div><label>日本語プロンプト<textarea id="promptJa" rows="11" readonly placeholder="生成ボタンを押すと表示されます"></textarea></label><button type="button" class="copy-button" data-copy-target="promptJa">日本語をコピー</button></div>
+        <div><label>English Prompt<textarea id="promptEn" rows="11" readonly placeholder="Press generate to create a prompt"></textarea></label><button type="button" class="copy-button" data-copy-target="promptEn">Englishをコピー</button></div>
       </div>
     </section>
 
     <section class="card" aria-labelledby="checklist-title">
-      <div class="section-heading">
-        <span>04</span>
-        <h2 id="checklist-title">制作チェックリスト</h2>
-      </div>
+      <div class="section-heading"><span>04</span><div><h2 id="checklist-title">制作チェックリスト</h2><p>AI制作から書き出しまでの進行状況を保存できます。</p></div></div>
       <div id="checklist" class="checklist" aria-live="polite"></div>
     </section>
   </main>
