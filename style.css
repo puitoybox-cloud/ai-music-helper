@@ -27,6 +27,24 @@ input:focus, textarea:focus, select:focus { border-color: var(--blue); backgroun
 button, .file-button { min-height: 54px; border: 0; border-radius: 18px; padding: 14px 20px; background: #e8eef4; color: var(--ink); font: inherit; font-weight: 900; cursor: pointer; touch-action: manipulation; text-align: center; }
 button.primary, .file-button { background: var(--blue-dark); color: #fff; } button.danger { background: #ffe8e8; color: #9b2c2c; } button.wide { width: 100%; margin-bottom: 18px; } button:active, .file-button:active { transform: translateY(1px); } #importFile { display: none; }
 .copy-button { width: 100%; margin-top: 10px; background: var(--soft); color: var(--blue-dark); border: 1px solid var(--line); }
+#midiFile { display: none; }
+.midi-card-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.sub-card { border: 1px solid var(--line); border-radius: 22px; background: #f8fcff; padding: 20px; display: grid; gap: 14px; }
+.sub-card h3 { margin: 0; font-size: 1.22rem; color: var(--blue-dark); }
+.helper-text, .midi-file-name { margin: 0; color: var(--muted); font-weight: 700; line-height: 1.7; }
+.midi-file-button { display: grid; place-items: center; width: 100%; font-size: 1.05rem; }
+.compact-grid { gap: 12px; }
+.option-row { display: grid; gap: 10px; }
+.inline-option { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 16px; background: #fff; font-size: 1rem; }
+.inline-option input { width: 26px; height: 26px; min-height: 26px; accent-color: var(--blue-dark); flex: 0 0 auto; }
+.warning-box { border: 1px solid #f3b2b2; background: #fff3f3; color: #9b2c2c; border-radius: 16px; padding: 14px 16px; font-weight: 900; line-height: 1.7; }
+.midi-summary { color: var(--ink); line-height: 1.8; font-weight: 700; }
+.measure-list { display: grid; gap: 8px; max-height: 360px; overflow: auto; padding-right: 4px; }
+.measure-item { display: flex; justify-content: space-between; gap: 10px; border: 1px solid var(--line); background: #fff; border-radius: 14px; padding: 10px 12px; font-weight: 800; }
+.full-span { grid-column: 1 / -1; }
+#midiLyricsOutput { font-size: 1.08rem; background: #fff; }
+@media (max-width: 760px) { .midi-card-grid { grid-template-columns: 1fr; } .sub-card { padding: 16px; } .inline-option { align-items: flex-start; } }
+
 .checklist { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .check-item { display: flex; align-items: center; gap: 12px; padding: 16px; border: 1px solid var(--line); border-radius: 18px; background: #f8fbfd; font-weight: 800; }
 .check-item input { width: 30px; height: 30px; min-height: 30px; accent-color: var(--blue-dark); }

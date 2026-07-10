@@ -15,6 +15,199 @@ const otherFieldMap = { genre: "genreOther", mood: "moodOther", timeSignature: "
 const checklistItems = ["AIで曲を作る", "ステム分離する", "Logic Proで編集する", "MIDIを作る", "VoiSonaで歌わせる", "RVCまたはApplioで自分の声に変える", "ミックスする", "書き出す"];
 const lyricLabels = { lyricsIntro: "イントロ", lyricsVerseA: "Aメロ", lyricsVerseB: "Bメロ", lyricsChorus: "サビ", lyricsInterlude: "間奏", lyricsFinalChorus: "ラスサビ" };
 const fieldIds = ["title", ...Object.keys(selectOptions), ...Object.values(otherFieldMap), "reference", ...Object.keys(lyricLabels), "promptJa", "promptEn"];
+let midiState = null;
+
+class MidiReader {
+  constructor(buffer) { this.view = new DataView(buffer); this.pos = 0; }
+  readUint8() { return this.view.getUint8(this.pos++); }
+  readUint16() { const v = this.view.getUint16(this.pos); this.pos += 2; return v; }
+  readUint32() { const v = this.view.getUint32(this.pos); this.pos += 4; return v; }
+  readString(len) { let s = ""; for (let i = 0; i < len; i++) s += String.fromCharCode(this.readUint8()); return s; }
+  readBytes(len) { const bytes = new Uint8Array(this.view.buffer, this.pos, len); this.pos += len; return bytes; }
+  readVarLen() { let value = 0, b; do { b = this.readUint8(); value = (value << 7) | (b & 0x7f); } while (b & 0x80); return value; }
+}
+
+function parseMidiFile(buffer) {
+  const r = new MidiReader(buffer);
+  if (r.readString(4) !== "MThd") throw new Error("MIDIヘッダーが見つかりません");
+  const headerLength = r.readUint32();
+  const format = r.readUint16();
+  const trackCount = r.readUint16();
+  const division = r.readUint16();
+  r.pos += Math.max(0, headerLength - 6);
+  if (division & 0x8000) throw new Error("SMPTE time divisionのMIDIには未対応です");
+  const ticksPerQuarter = division;
+  const tracks = [];
+  const globalTempoEvents = [];
+  const globalTimeSignatures = [];
+  for (let t = 0; t < trackCount; t++) {
+    if (r.readString(4) !== "MTrk") throw new Error("MTrkチャンクを読み込めません");
+    const end = r.pos + r.readUint32();
+    let tick = 0, runningStatus = null;
+    const notes = [], tempos = [], timeSignatures = [];
+    while (r.pos < end) {
+      tick += r.readVarLen();
+      let status = r.readUint8();
+      if (status < 0x80) { r.pos--; status = runningStatus; }
+      else if (status < 0xf0) runningStatus = status;
+      if (status === 0xff) {
+        const type = r.readUint8();
+        const len = r.readVarLen();
+        const bytes = r.readBytes(len);
+        if (type === 0x51 && len >= 3) { const mpqn = (bytes[0] << 16) | (bytes[1] << 8) | bytes[2]; tempos.push({ tick, bpm: Math.round((60000000 / mpqn) * 10) / 10 }); }
+        if (type === 0x58 && len >= 2) { timeSignatures.push({ tick, numerator: bytes[0], denominator: 2 ** bytes[1] }); }
+      } else if (status === 0xf0 || status === 0xf7) {
+        r.readBytes(r.readVarLen());
+      } else if (status >= 0x80 && status <= 0xef) {
+        const command = status & 0xf0;
+        const channel = status & 0x0f;
+        const data1 = r.readUint8();
+        const needsTwo = command !== 0xc0 && command !== 0xd0;
+        const data2 = needsTwo ? r.readUint8() : 0;
+        if (command === 0x90 && data2 > 0) notes.push({ tick, note: data1, velocity: data2, channel });
+      } else { throw new Error("未対応のMIDIイベントを検出しました"); }
+    }
+    r.pos = end;
+    tempos.forEach((e) => globalTempoEvents.push(e));
+    timeSignatures.forEach((e) => globalTimeSignatures.push(e));
+    tracks.push({ index: t, notes, tempos, timeSignatures });
+  }
+  globalTempoEvents.sort((a,b)=>a.tick-b.tick); globalTimeSignatures.sort((a,b)=>a.tick-b.tick);
+  const firstTempo = globalTempoEvents[0]?.bpm || null;
+  const firstSignature = globalTimeSignatures[0] || { numerator: 4, denominator: 4, tick: 0 };
+  return { format, trackCount, ticksPerQuarter, bpm: firstTempo, timeSignature: firstSignature, tracks, tempoEvents: globalTempoEvents, timeSignatures: globalTimeSignatures };
+}
+
+function ticksPerMeasureAt(midi, tick) {
+  const sig = [...midi.timeSignatures].reverse().find((s) => s.tick <= tick) || { numerator: 4, denominator: 4 };
+  return midi.ticksPerQuarter * 4 * sig.numerator / sig.denominator;
+}
+
+function getTrackMeasureCounts(midi, trackIndex) {
+  const track = midi.tracks[trackIndex];
+  const counts = [];
+  track.notes.forEach((note) => {
+    const tpm = ticksPerMeasureAt(midi, note.tick);
+    const measure = Math.floor(note.tick / tpm);
+    counts[measure] = (counts[measure] || 0) + 1;
+  });
+  return counts.map((count, index) => ({ measure: index + 1, count: count || 0 })).filter((item) => item.count > 0);
+}
+
+function getSelectedMidiTrackIndex() { const v = $("midiTrackSelect")?.value; return v === "" ? -1 : Number(v); }
+
+function serializeMidiState() {
+  if (!midiState) return null;
+  return { fileName: midiState.fileName, parsed: midiState.parsed };
+}
+
+function restoreMidiState(saved) {
+  if (!saved?.parsed) return;
+  midiState = { fileName: saved.fileName || "読み込み済みMIDI", parsed: saved.parsed };
+  $("midiFileName").textContent = `${midiState.fileName}（保存データ）`;
+  populateMidiTrackSelect(); renderMidiAnalysis(); updateMidiLyricsAllocation();
+}
+
+function populateMidiTrackSelect() {
+  const select = $("midiTrackSelect");
+  select.innerHTML = "";
+  if (!midiState) { select.disabled = true; select.appendChild(new Option("MIDI読み込み後に選択", "")); return; }
+  midiState.parsed.tracks.forEach((track) => select.appendChild(new Option(`トラック${track.index + 1}：${track.notes.length}音`, String(track.index))));
+  const best = midiState.parsed.tracks.reduce((a, b) => (b.notes.length > a.notes.length ? b : a), midiState.parsed.tracks[0]);
+  select.value = String(best?.index || 0); select.disabled = false;
+}
+
+function renderMidiAnalysis() {
+  const summary = $("midiSummary"), list = $("midiMeasureCounts"); list.innerHTML = "";
+  if (!midiState) { summary.textContent = "MIDIを読み込むと、BPM・拍子・トラック別音符数・小節ごとの音符数を表示します。"; return; }
+  const midi = midiState.parsed, trackIndex = getSelectedMidiTrackIndex();
+  const trackLines = midi.tracks.map((t) => `トラック${t.index + 1}: ${t.notes.length}音`).join(" / ");
+  const sig = midi.timeSignature || { numerator: 4, denominator: 4 };
+  const counts = getTrackMeasureCounts(midi, trackIndex);
+  const total = counts.reduce((sum, item) => sum + item.count, 0);
+  summary.innerHTML = `ファイル：${midiState.fileName}<br>Format ${midi.format} / TPQN：${midi.ticksPerQuarter} / 拍子：${sig.numerator}/${sig.denominator} / BPM：${midi.bpm || "未検出"}<br>トラック別音符数：${trackLines}<br><strong>選択トラック合計：${total}音</strong>`;
+  counts.forEach((item) => { const row = document.createElement("div"); row.className = "measure-item"; row.innerHTML = `<span>${item.measure}小節目</span><strong>${item.count}音</strong>`; list.appendChild(row); });
+}
+
+function splitJapaneseLyrics(text) {
+  const combineYoon = $("midiCombineSmallYoon").checked;
+  const combineLong = $("midiLongVowelMode").checked;
+  const countSmallTsu = $("midiSmallTsuMode").checked;
+  const chars = Array.from(text.normalize("NFKC")).filter((ch) => /[ぁ-ゖー]/.test(ch));
+  const units = [];
+  chars.forEach((ch) => {
+    if (combineYoon && "ゃゅょぁぃぅぇぉゎ".includes(ch) && units.length) units[units.length - 1] += ch;
+    else if (ch === "ー" && combineLong && units.length) units[units.length - 1] += ch;
+    else if (ch === "っ" && !countSmallTsu && units.length) units[units.length - 1] += ch;
+    else units.push(ch);
+  });
+  return units;
+}
+
+function updateMidiLyricsAllocation() {
+  const units = splitJapaneseLyrics($("midiLyricsInput")?.value || "");
+  $("midiLyricsSyllableCount").textContent = `${units.length}音`;
+  const output = $("midiLyricsOutput"), warning = $("midiWarning");
+  const warnings = [];
+  if (!midiState) { output.value = ""; warnings.push("歌メロだけのMIDIを使ってください"); }
+  else {
+    const counts = getTrackMeasureCounts(midiState.parsed, getSelectedMidiTrackIndex());
+    const total = counts.reduce((sum, item) => sum + item.count, 0);
+    const sep = $("midiOutputSeparator").value === "space" ? " " : " / ";
+    let cursor = 0;
+    output.value = counts.map((item) => { const part = units.slice(cursor, cursor + item.count); cursor += item.count; return `${item.measure}小節目：${part.join(sep)}`; }).join("\n");
+    if (units.length > total) warnings.push("歌詞の音がMIDIの音符数より多いです");
+    if (total > units.length) warnings.push("MIDIの音符数が歌詞の音より多いです");
+  }
+  warning.hidden = warnings.length === 0;
+  warning.innerHTML = warnings.join("<br>");
+}
+
+function getMidiProjectData() {
+  return {
+    lyricsInput: $("midiLyricsInput")?.value || "",
+    outputSeparator: $("midiOutputSeparator")?.value || "slash",
+    combineSmallYoon: Boolean($("midiCombineSmallYoon")?.checked),
+    longVowelCombine: Boolean($("midiLongVowelMode")?.checked),
+    smallTsuCount: Boolean($("midiSmallTsuMode")?.checked),
+    selectedTrack: $("midiTrackSelect")?.value || "",
+    state: serializeMidiState(),
+  };
+}
+
+function setMidiProjectData(data) {
+  if (!$("midiLyricsInput")) return;
+  $("midiLyricsInput").value = data?.lyricsInput || "";
+  $("midiOutputSeparator").value = data?.outputSeparator || "slash";
+  $("midiCombineSmallYoon").checked = data?.combineSmallYoon !== false;
+  $("midiLongVowelMode").checked = Boolean(data?.longVowelCombine);
+  $("midiSmallTsuMode").checked = data?.smallTsuCount !== false;
+  restoreMidiState(data?.state);
+  if (data?.selectedTrack !== undefined && document.querySelector(`#midiTrackSelect option[value="${data.selectedTrack}"]`)) $("midiTrackSelect").value = data.selectedTrack;
+  renderMidiAnalysis(); updateMidiLyricsAllocation();
+}
+
+function clearMidiProjectData() {
+  midiState = null;
+  if ($("midiFile")) $("midiFile").value = "";
+  if ($("midiFileName")) $("midiFileName").textContent = "未選択";
+  if ($("midiLyricsInput")) $("midiLyricsInput").value = "";
+  if ($("midiLyricsOutput")) $("midiLyricsOutput").value = "";
+  populateMidiTrackSelect(); renderMidiAnalysis(); updateMidiLyricsAllocation();
+}
+
+function setupMidiEvents() {
+  $("midiFile").addEventListener("change", (event) => {
+    const file = event.target.files[0]; if (!file) return;
+    if (!/\.midi?$/i.test(file.name)) { showToast(".mid または .midi を選んでください"); event.target.value = ""; return; }
+    const reader = new FileReader();
+    reader.onload = () => { try { midiState = { fileName: file.name, parsed: parseMidiFile(reader.result) }; $("midiFileName").textContent = file.name; populateMidiTrackSelect(); renderMidiAnalysis(); updateMidiLyricsAllocation(); saveProject(false); showToast("MIDIを解析しました"); } catch (e) { console.error(e); showToast("MIDIを解析できませんでした"); } };
+    reader.readAsArrayBuffer(file);
+  });
+  ["midiTrackSelect", "midiLyricsInput", "midiOutputSeparator", "midiCombineSmallYoon", "midiLongVowelMode", "midiSmallTsuMode"].forEach((id) => $(id).addEventListener("input", () => { renderMidiAnalysis(); updateMidiLyricsAllocation(); scheduleAutoSave(); }));
+  $("midiTrackSelect").addEventListener("change", () => { renderMidiAnalysis(); updateMidiLyricsAllocation(); scheduleAutoSave(); });
+}
+
 const $ = (id) => document.getElementById(id);
 let toastTimer;
 let autoSaveTimer;
@@ -68,7 +261,7 @@ function updateLyricCounts() {
 function getProjectData() {
   const fields = Object.fromEntries(fieldIds.map((id) => [id, $(id).value]));
   const checklist = checklistItems.map((_, index) => $(`check-${index}`).checked);
-  return { appName: "AI Music Helper", version: 2, savedAt: new Date().toISOString(), fields, checklist };
+  return { appName: "AI Music Helper", version: 3, savedAt: new Date().toISOString(), fields, checklist, midi: getMidiProjectData() };
 }
 
 function setProjectData(data) {
@@ -80,6 +273,7 @@ function setProjectData(data) {
   Object.keys(otherFieldMap).forEach(updateOtherVisibility);
   const checklist = Array.isArray(data?.checklist) ? data.checklist : [];
   checklistItems.forEach((_, index) => { $(`check-${index}`).checked = Boolean(checklist[index]); });
+  setMidiProjectData(data?.midi);
   updateLyricCounts();
 }
 
@@ -148,6 +342,7 @@ function importJson(event) {
 function resetProject() {
   if (!window.confirm("入力内容とチェック状態をリセットしますか？")) return;
   fieldIds.forEach((id) => { if ($(id)) $(id).value = ""; });
+  clearMidiProjectData();
   $("key").selectedIndex = 0; $("bpm").selectedIndex = 6;
   Object.keys(otherFieldMap).forEach(updateOtherVisibility);
   checklistItems.forEach((_, index) => { $(`check-${index}`).checked = false; });
@@ -167,6 +362,7 @@ function setupEvents() {
   Object.keys(selectOptions).forEach((id) => $(id).addEventListener("change", () => { updateOtherVisibility(id); scheduleAutoSave(); }));
   checklistItems.forEach((_, index) => $(`check-${index}`).addEventListener("change", scheduleAutoSave));
   document.querySelectorAll(".copy-button").forEach((button) => button.addEventListener("click", () => copyPrompt(button.dataset.copyTarget)));
+  setupMidiEvents();
   $("saveButton").addEventListener("click", () => saveProject(true)); $("exportButton").addEventListener("click", exportJson); $("importFile").addEventListener("change", importJson); $("resetButton").addEventListener("click", resetProject); $("generateButton").addEventListener("click", generatePrompts);
 }
 
