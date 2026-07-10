@@ -166,6 +166,14 @@ button.primary, .file-button { background: var(--blue-dark); color: #fff; } butt
 #voisonaChatGptPrompt { min-height: 260px; background: #fff; }
 .voisona-format-card .button-grid button:last-child:nth-child(odd) { grid-column: 1 / -1; }
 @media (pointer: coarse) { button, .file-button { min-height: 60px; padding: 16px 20px; } }
+
+.midi-voisona-output { display: grid; gap: 16px; margin: 18px 0; padding: 18px; border: 1px solid var(--line); border-radius: 20px; background: #f8fbff; }
+.midi-voisona-output .editor-heading { align-items: end; }
+.midi-voisona-output .editor-heading > button { min-width: 260px; }
+.midi-voisona-output-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+#midiVoisonaPasteOutput, #midiVoisonaPasteOneLineOutput { font-size: 1.08rem; background: #fff; }
+@media (max-width: 760px) { .midi-voisona-output-grid { grid-template-columns: 1fr; } .midi-voisona-output .editor-heading > button { width: 100%; min-width: 0; } }
+
 .midi-auto-shift-option { background: #eef8ff; color: var(--blue-dark); }
 .midi-overflow-lyrics { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; border: 1px solid #f6c36b; background: #fff8e8; color: #8a5a00; border-radius: 16px; padding: 12px 14px; font-weight: 900; line-height: 1.7; }
 .midi-overflow-lyrics[hidden] { display: none; }

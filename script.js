@@ -400,6 +400,42 @@ function getFlatIndex(measureIndex, noteIndex) {
   return midiEditorData.slice(0, measureIndex).reduce((sum, measure) => sum + measure.lyrics.length, 0) + noteIndex;
 }
 
+function getMidiVoisonaSeparator() {
+  return " / ";
+}
+
+function getMidiVoisonaPasteOutputs() {
+  const sep = getMidiVoisonaSeparator();
+  const lines = midiEditorData
+    .map((measure) => measure.lyrics.map((value) => value.trim()).filter(Boolean).join(sep))
+    .filter(Boolean);
+  const overflowLine = midiEditorOverflow.map((value) => value.trim()).filter(Boolean).join(sep);
+  if (overflowLine) lines.push(overflowLine);
+  const oneLine = midiEditorData
+    .flatMap((measure) => measure.lyrics)
+    .concat(midiEditorOverflow)
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .join(sep);
+  return { multiline: lines.join("\n"), oneLine };
+}
+
+function updateMidiVoisonaPasteOutputs() {
+  const multilineOutput = $("midiVoisonaPasteOutput");
+  const oneLineOutput = $("midiVoisonaPasteOneLineOutput");
+  if (!multilineOutput || !oneLineOutput) return;
+  const outputs = getMidiVoisonaPasteOutputs();
+  multilineOutput.value = outputs.multiline;
+  oneLineOutput.value = outputs.oneLine;
+}
+
+function buildMidiVoisonaPasteOutput(showMessage = true) {
+  ensureMidiEditorShape();
+  updateMidiVoisonaPasteOutputs();
+  scheduleAutoSave();
+  if (showMessage) showToast("VoiSona貼り付け用出力を作りました");
+}
+
 function updateMidiOverflowDisplay() {
   const box = $("midiOverflowLyrics");
   if (!box) return;
@@ -548,6 +584,7 @@ function updateNoteValueOnly(inputOrMeasureIndex, noteIndex, value) {
   }
   updateMidiSelectedCellClasses();
   updateMidiOverflowDisplay();
+  updateMidiVoisonaPasteOutputs();
   scheduleAutoSave();
 }
 
@@ -610,6 +647,7 @@ function renderMidiNoteEditor(options = {}) {
     editor.appendChild(card);
   });
   updateMidiOverflowDisplay();
+  updateMidiVoisonaPasteOutputs();
   updateNoteEditHistoryButtons();
   if (options.restoreFocus) restoreMidiEditorFocus(options.focusTarget);
 }
@@ -625,6 +663,7 @@ function buildMidiOutputFromEditor(showMessage = true) {
   ensureMidiEditorShape();
   $("midiLyricsOutput").value = formatMidiEditorOutput();
   updateMidiOverflowDisplay();
+  updateMidiVoisonaPasteOutputs();
   scheduleAutoSave();
   if (showMessage) showToast("編集表からVoiSona出力を作りました");
 }
@@ -646,6 +685,8 @@ function getMidiProjectData() {
     smallTsuCount: Boolean($("midiSmallTsuMode")?.checked),
     selectedTrack: $("midiTrackSelect")?.value || "",
     allocationOutput: $("midiLyricsOutput")?.value || "",
+    voisonaPasteOutput: $("midiVoisonaPasteOutput")?.value || "",
+    voisonaPasteOneLineOutput: $("midiVoisonaPasteOneLineOutput")?.value || "",
     editorData: midiEditorData,
     editorOverflow: midiEditorOverflow,
     autoShiftMode: Boolean($("midiAutoShiftMode")?.checked),
@@ -673,6 +714,8 @@ function setMidiProjectData(data) {
     renderMidiNoteEditor();
     if (data?.allocationOutput) $("midiLyricsOutput").value = data.allocationOutput;
   }
+  if ($("midiVoisonaPasteOutput")) $("midiVoisonaPasteOutput").value = data?.voisonaPasteOutput || "";
+  if ($("midiVoisonaPasteOneLineOutput")) $("midiVoisonaPasteOneLineOutput").value = data?.voisonaPasteOneLineOutput || "";
   resetNoteEditHistory();
 }
 
@@ -682,6 +725,8 @@ function clearMidiProjectData() {
   if ($("midiFileName")) $("midiFileName").textContent = "未選択";
   if ($("midiLyricsInput")) $("midiLyricsInput").value = "";
   if ($("midiLyricsOutput")) $("midiLyricsOutput").value = "";
+  if ($("midiVoisonaPasteOutput")) $("midiVoisonaPasteOutput").value = "";
+  if ($("midiVoisonaPasteOneLineOutput")) $("midiVoisonaPasteOneLineOutput").value = "";
   midiEditorData = [];
   midiEditorOverflow = [];
   resetNoteEditHistory();
@@ -697,7 +742,7 @@ function setupMidiEvents() {
     reader.readAsArrayBuffer(file);
   });
   ["midiTrackSelect", "midiLyricsInput", "midiCombineSmallYoon", "midiLongVowelMode", "midiSmallTsuMode"].forEach((id) => $(id).addEventListener("input", () => { renderMidiAnalysis(); updateMidiLyricsAllocation(true); scheduleAutoSave(); }));
-  $("midiOutputSeparator").addEventListener("input", () => { renderMidiAnalysis(); updateMidiLyricsAllocation(false); $("midiLyricsOutput").value = formatMidiEditorOutput(); scheduleAutoSave(); });
+  $("midiOutputSeparator").addEventListener("input", () => { renderMidiAnalysis(); updateMidiLyricsAllocation(false); $("midiLyricsOutput").value = formatMidiEditorOutput(); updateMidiVoisonaPasteOutputs(); scheduleAutoSave(); });
   $("midiTrackSelect").addEventListener("change", () => { renderMidiAnalysis(); updateMidiLyricsAllocation(); scheduleAutoSave(); });
   $("midiNoteEditor").addEventListener("compositionstart", (event) => {
     if (event.target.closest("input[data-measure-index][data-note-index]")) isComposingNoteText = true;
@@ -744,6 +789,7 @@ function setupMidiEvents() {
     if (action === "split") splitMidiEditorNote(measureIndex, noteIndex);
     scheduleAutoSave();
   });
+  $("midiBuildVoisonaPasteButton")?.addEventListener("click", () => buildMidiVoisonaPasteOutput(true));
   $("midiAutoShiftMode").addEventListener("change", scheduleAutoSave);
   document.querySelectorAll(".note-editor-toolbar, .note-editor-floating-toolbar").forEach((toolbar) => {
     toolbar.addEventListener("click", (event) => {
@@ -753,7 +799,7 @@ function setupMidiEvents() {
       if (action === "undo") undoNoteEdit();
       if (action === "redo") redoNoteEdit();
       if (action === "compact") compactMidiEditorBlanks(true);
-      if (action === "build") buildMidiOutputFromEditor(true);
+      if (action === "build") { buildMidiOutputFromEditor(true); buildMidiVoisonaPasteOutput(false); }
       if (action === "reset") { rebuildMidiEditorFromAuto(false); buildMidiOutputFromEditor(); showToast("編集表を自動分割の内容に戻しました"); }
       if (action === "copy") copyMidiEditorContent();
     });
