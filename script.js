@@ -334,23 +334,38 @@ function updateMidiOverflowDisplay() {
   box.innerHTML = midiEditorOverflow.length ? `<strong>あふれた歌詞：</strong><span>${midiEditorOverflow.join(sep) || "（空欄）"}</span>` : "";
 }
 
+function fillMidiEditorCapacity(combined, capacity) {
+  while (combined.length < capacity) combined.push("");
+  setMidiEditorFromFlat(combined.slice(0, capacity), combined.slice(capacity).filter((value) => value !== ""));
+}
+
+function compactMidiEditorBlanks(showMessage = true) {
+  const capacity = flattenMidiEditorData().length;
+  const combined = [...flattenMidiEditorData(), ...midiEditorOverflow].filter((value) => value.trim() !== "");
+  fillMidiEditorCapacity(combined, capacity);
+  renderMidiNoteEditor();
+  buildMidiOutputFromEditor(false);
+  if (showMessage) showToast("編集表全体の空欄を前に詰めました");
+}
+
 function applyMidiEditorShift(flatIndex, newValue, oldValue = "") {
   const flat = flattenMidiEditorData();
   const capacity = flat.length;
   const combined = [...flat, ...midiEditorOverflow];
   const normalizedNewValue = newValue.trim();
-  if (oldValue && !normalizedNewValue) {
+  const normalizedOldValue = oldValue.trim();
+  if (normalizedOldValue && !normalizedNewValue) {
     combined.splice(flatIndex, 1);
-  } else if (!oldValue && normalizedNewValue) {
-    combined.splice(flatIndex, 0, normalizedNewValue);
-  } else if (oldValue && normalizedNewValue.startsWith(oldValue) && Array.from(normalizedNewValue).length > Array.from(oldValue).length) {
-    combined[flatIndex] = oldValue;
-    combined.splice(flatIndex + 1, 0, normalizedNewValue.slice(oldValue.length));
+  } else if (!normalizedOldValue && normalizedNewValue) {
+    if ((combined[flatIndex] || "").trim() === "") combined[flatIndex] = normalizedNewValue;
+    else combined.splice(flatIndex, 0, normalizedNewValue);
+  } else if (normalizedOldValue && normalizedNewValue.startsWith(normalizedOldValue) && Array.from(normalizedNewValue).length > Array.from(normalizedOldValue).length) {
+    combined[flatIndex] = normalizedOldValue;
+    combined.splice(flatIndex + 1, 0, normalizedNewValue.slice(normalizedOldValue.length));
   } else {
     combined[flatIndex] = normalizedNewValue;
   }
-  while (combined.length < capacity) combined.push("");
-  setMidiEditorFromFlat(combined.slice(0, capacity), combined.slice(capacity).filter((value) => value !== ""));
+  fillMidiEditorCapacity(combined, capacity);
 }
 
 function updateMidiSelectedCellClasses() {
@@ -366,8 +381,15 @@ function insertMidiEditorNoteAfter(measureIndex, noteIndex) {
   const combined = [...flattenMidiEditorData(), ...midiEditorOverflow];
   const capacity = flattenMidiEditorData().length;
   combined.splice(flatIndex, 0, "");
-  setMidiEditorFromFlat(combined.slice(0, capacity), combined.slice(capacity).filter((value) => value !== ""));
-  midiSelectedCell = { measureIndex, noteIndex };
+  fillMidiEditorCapacity(combined, capacity);
+  const targetIndex = Math.min(flatIndex, capacity - 1);
+  let nextMeasureIndex = 0;
+  let remaining = targetIndex;
+  for (const [index, measure] of midiEditorData.entries()) {
+    if (remaining < measure.lyrics.length) { nextMeasureIndex = index; break; }
+    remaining -= measure.lyrics.length;
+  }
+  midiSelectedCell = { measureIndex: nextMeasureIndex, noteIndex: remaining };
   renderMidiNoteEditor();
   buildMidiOutputFromEditor(false);
 }
@@ -575,6 +597,7 @@ function setupMidiEvents() {
     scheduleAutoSave();
   });
   $("midiAutoShiftMode").addEventListener("change", scheduleAutoSave);
+  $("midiCompactBlanksButton").addEventListener("click", () => compactMidiEditorBlanks(true));
   $("midiBuildFromEditorButton").addEventListener("click", () => buildMidiOutputFromEditor(true));
   $("midiResetEditorButton").addEventListener("click", () => { rebuildMidiEditorFromAuto(); buildMidiOutputFromEditor(); showToast("編集表を自動分割の内容に戻しました"); });
   $("midiCopyEditorButton").addEventListener("click", copyMidiEditorContent);
