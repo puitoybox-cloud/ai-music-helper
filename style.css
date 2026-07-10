@@ -25,6 +25,7 @@ textarea { resize: vertical; min-height: 132px; line-height: 1.7; }
 input:focus, textarea:focus, select:focus { border-color: var(--blue); background: #fff; box-shadow: 0 0 0 4px rgba(99,179,237,.2); }
 .other-input[hidden] { display: none; } small, .total-count { color: var(--muted); font-weight: 700; text-align: right; margin: 0; }
 button, .file-button { min-height: 54px; border: 0; border-radius: 18px; padding: 14px 20px; background: #e8eef4; color: var(--ink); font: inherit; font-weight: 900; cursor: pointer; touch-action: manipulation; text-align: center; }
+button:disabled { cursor: not-allowed; opacity: .55; transform: none; }
 button.primary, .file-button { background: var(--blue-dark); color: #fff; } button.danger { background: #ffe8e8; color: #9b2c2c; } button.wide { width: 100%; margin-bottom: 18px; } button:active, .file-button:active { transform: translateY(1px); } #importFile { display: none; }
 .copy-button { width: 100%; margin-top: 10px; background: var(--soft); color: var(--blue-dark); border: 1px solid var(--line); }
 #midiFile { display: none; }
@@ -55,7 +56,9 @@ button.primary, .file-button { background: var(--blue-dark); color: #fff; } butt
 .button-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .voisona-format-card textarea { min-height: 180px; }
 #voisonaSeparatedOutput { font-size: 1.08rem; background: #fff; }
+.status-label { margin: 0 0 -8px; color: var(--muted); font-weight: 900; }
 .tokenizer-status { margin: 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 14px; background: #fff; color: var(--blue-dark); font-weight: 900; line-height: 1.6; }
 .tokenizer-status.is-loading { color: var(--muted); }
+.tokenizer-status.is-ready { color: #276749; background: #f0fff4; border-color: #9ae6b4; }
 .tokenizer-status.is-error { color: #9b2c2c; background: #fff3f3; border-color: #f3b2b2; }
 @media (max-width: 760px) { .voisona-grid, .button-grid { grid-template-columns: 1fr; } }
