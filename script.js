@@ -22,6 +22,9 @@ let midiState = null;
 let midiEditorData = [];
 let midiEditorOverflow = [];
 let midiSelectedCell = { measureIndex: 0, noteIndex: 0 };
+let noteEditHistory = [];
+let noteEditHistoryIndex = -1;
+const NOTE_EDIT_HISTORY_LIMIT = 50;
 
 class MidiReader {
   constructor(buffer) { this.view = new DataView(buffer); this.pos = 0; }
@@ -322,6 +325,71 @@ function setMidiEditorFromFlat(flat, overflow = []) {
   midiEditorOverflow = overflow;
 }
 
+function getNoteEditHistoryState() {
+  return {
+    signature: getMidiEditorSignature(),
+    flat: flattenMidiEditorData(),
+    overflow: [...midiEditorOverflow],
+  };
+}
+
+function areNoteEditHistoryStatesEqual(a, b) {
+  return Boolean(a && b) && a.signature === b.signature && JSON.stringify(a.flat) === JSON.stringify(b.flat) && JSON.stringify(a.overflow) === JSON.stringify(b.overflow);
+}
+
+function updateNoteEditHistoryButtons() {
+  const undoButton = $("midiUndoEditorButton");
+  const redoButton = $("midiRedoEditorButton");
+  if (undoButton) undoButton.disabled = noteEditHistoryIndex <= 0;
+  if (redoButton) redoButton.disabled = noteEditHistoryIndex < 0 || noteEditHistoryIndex >= noteEditHistory.length - 1;
+}
+
+function pushNoteEditHistory() {
+  if (!midiEditorData.length) {
+    noteEditHistory = [];
+    noteEditHistoryIndex = -1;
+    updateNoteEditHistoryButtons();
+    return;
+  }
+  const state = getNoteEditHistoryState();
+  if (areNoteEditHistoryStatesEqual(noteEditHistory[noteEditHistoryIndex], state)) {
+    updateNoteEditHistoryButtons();
+    return;
+  }
+  noteEditHistory = noteEditHistory.slice(0, noteEditHistoryIndex + 1);
+  noteEditHistory.push(state);
+  if (noteEditHistory.length > NOTE_EDIT_HISTORY_LIMIT) noteEditHistory.shift();
+  noteEditHistoryIndex = noteEditHistory.length - 1;
+  updateNoteEditHistoryButtons();
+}
+
+function resetNoteEditHistory() {
+  noteEditHistory = [];
+  noteEditHistoryIndex = -1;
+  pushNoteEditHistory();
+}
+
+function applyNoteEditHistoryState(state) {
+  if (!state || state.signature !== getMidiEditorSignature()) return false;
+  setMidiEditorFromFlat(state.flat, state.overflow);
+  renderMidiNoteEditor();
+  buildMidiOutputFromEditor(false);
+  updateNoteEditHistoryButtons();
+  return true;
+}
+
+function undoNoteEdit() {
+  if (noteEditHistoryIndex <= 0) return;
+  noteEditHistoryIndex -= 1;
+  applyNoteEditHistoryState(noteEditHistory[noteEditHistoryIndex]);
+}
+
+function redoNoteEdit() {
+  if (noteEditHistoryIndex >= noteEditHistory.length - 1) return;
+  noteEditHistoryIndex += 1;
+  applyNoteEditHistoryState(noteEditHistory[noteEditHistoryIndex]);
+}
+
 function getFlatIndex(measureIndex, noteIndex) {
   return midiEditorData.slice(0, measureIndex).reduce((sum, measure) => sum + measure.lyrics.length, 0) + noteIndex;
 }
@@ -345,6 +413,7 @@ function compactMidiEditorBlanks(showMessage = true) {
   fillMidiEditorCapacity(combined, capacity);
   renderMidiNoteEditor();
   buildMidiOutputFromEditor(false);
+  pushNoteEditHistory();
   if (showMessage) showToast("編集表全体の空欄を前に詰めました");
 }
 
@@ -392,6 +461,7 @@ function insertMidiEditorNoteAfter(measureIndex, noteIndex) {
   midiSelectedCell = { measureIndex: nextMeasureIndex, noteIndex: remaining };
   renderMidiNoteEditor();
   buildMidiOutputFromEditor(false);
+  pushNoteEditHistory();
 }
 
 function deleteMidiEditorNote(measureIndex, noteIndex) {
@@ -399,6 +469,7 @@ function deleteMidiEditorNote(measureIndex, noteIndex) {
   midiSelectedCell = { measureIndex, noteIndex: Math.min(noteIndex, (midiEditorData[measureIndex]?.lyrics?.length || 1) - 1) };
   renderMidiNoteEditor();
   buildMidiOutputFromEditor(false);
+  pushNoteEditHistory();
 }
 
 function mergeMidiEditorNoteRight(measureIndex, noteIndex) {
@@ -412,6 +483,7 @@ function mergeMidiEditorNoteRight(measureIndex, noteIndex) {
   setMidiEditorFromFlat(combined.slice(0, capacity), combined.slice(capacity).filter((value) => value !== ""));
   renderMidiNoteEditor();
   buildMidiOutputFromEditor(false);
+  pushNoteEditHistory();
 }
 
 function splitMidiEditorNote(measureIndex, noteIndex) {
@@ -425,12 +497,15 @@ function splitMidiEditorNote(measureIndex, noteIndex) {
   setMidiEditorFromFlat(combined.slice(0, capacity), combined.slice(capacity).filter((item) => item !== ""));
   renderMidiNoteEditor();
   buildMidiOutputFromEditor(false);
+  pushNoteEditHistory();
 }
 
-function rebuildMidiEditorFromAuto() {
+function rebuildMidiEditorFromAuto(resetHistory = true) {
   midiEditorData = getMidiAutoEditorData();
   midiEditorOverflow = [];
   renderMidiNoteEditor();
+  if (resetHistory) resetNoteEditHistory();
+  else pushNoteEditHistory();
 }
 
 function ensureMidiEditorShape() {
@@ -447,10 +522,12 @@ function renderMidiNoteEditor() {
   editor.innerHTML = "";
   if (!midiState) {
     editor.innerHTML = `<p class="empty-editor-message">MIDIを読み込むと、音符ごとの編集表が表示されます。</p>`;
+    updateNoteEditHistoryButtons();
     return;
   }
   if (!midiEditorData.length) {
     editor.innerHTML = `<p class="empty-editor-message">選択中のトラックに音符がありません。</p>`;
+    updateNoteEditHistoryButtons();
     return;
   }
   midiEditorData.forEach((measure, measureIndex) => {
@@ -475,6 +552,7 @@ function renderMidiNoteEditor() {
     editor.appendChild(card);
   });
   updateMidiOverflowDisplay();
+  updateNoteEditHistoryButtons();
 }
 
 function formatMidiEditorOutput() {
@@ -536,6 +614,7 @@ function setMidiProjectData(data) {
     renderMidiNoteEditor();
     if (data?.allocationOutput) $("midiLyricsOutput").value = data.allocationOutput;
   }
+  resetNoteEditHistory();
 }
 
 function clearMidiProjectData() {
@@ -546,6 +625,7 @@ function clearMidiProjectData() {
   if ($("midiLyricsOutput")) $("midiLyricsOutput").value = "";
   midiEditorData = [];
   midiEditorOverflow = [];
+  resetNoteEditHistory();
   populateMidiTrackSelect(); renderMidiAnalysis(); updateMidiLyricsAllocation();
 }
 
@@ -571,9 +651,11 @@ function setupMidiEvents() {
       applyMidiEditorShift(getFlatIndex(measureIndex, noteIndex), input.value, oldValue);
       renderMidiNoteEditor();
       buildMidiOutputFromEditor(false);
+      pushNoteEditHistory();
     } else if (midiEditorData[measureIndex]?.lyrics) {
       midiEditorData[measureIndex].lyrics[noteIndex] = input.value;
       input.dataset.oldValue = input.value;
+      pushNoteEditHistory();
       scheduleAutoSave();
     }
   });
@@ -597,9 +679,11 @@ function setupMidiEvents() {
     scheduleAutoSave();
   });
   $("midiAutoShiftMode").addEventListener("change", scheduleAutoSave);
+  $("midiUndoEditorButton").addEventListener("click", undoNoteEdit);
+  $("midiRedoEditorButton").addEventListener("click", redoNoteEdit);
   $("midiCompactBlanksButton").addEventListener("click", () => compactMidiEditorBlanks(true));
   $("midiBuildFromEditorButton").addEventListener("click", () => buildMidiOutputFromEditor(true));
-  $("midiResetEditorButton").addEventListener("click", () => { rebuildMidiEditorFromAuto(); buildMidiOutputFromEditor(); showToast("編集表を自動分割の内容に戻しました"); });
+  $("midiResetEditorButton").addEventListener("click", () => { rebuildMidiEditorFromAuto(false); buildMidiOutputFromEditor(); showToast("編集表を自動分割の内容に戻しました"); });
   $("midiCopyEditorButton").addEventListener("click", copyMidiEditorContent);
 }
 

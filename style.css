@@ -82,7 +82,9 @@ button.primary, .file-button { background: var(--blue-dark); color: #fff; } butt
 .midi-note-editor { display: grid; gap: 16px; margin-top: 18px; }
 .editor-heading { display: grid; gap: 14px; }
 .editor-heading h4 { margin: 0 0 8px; color: var(--blue-dark); font-size: 1.25rem; }
-.editor-actions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.editor-actions { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
+.editor-actions button { min-height: 56px; padding: 14px 16px; }
+.editor-actions button:disabled { cursor: not-allowed; opacity: .48; background: #eef2f6; color: var(--muted); border-color: var(--line); }
 .midi-note-editor-grid,
 .note-editor-grid { display: grid; gap: 16px; max-width: 100%; overflow: visible; }
 .midi-measure-card,
@@ -137,3 +139,7 @@ button.primary, .file-button { background: var(--blue-dark); color: #fff; } butt
 .midi-auto-shift-option span { display: grid; gap: 4px; line-height: 1.5; }
 .midi-auto-shift-option small { display: block; color: var(--blue-dark); font-weight: 800; text-align: left; line-height: 1.5; }
 #midiCompactBlanksButton { background: #fff8e8; color: #8a5a00; border: 1px solid #f6c36b; }
+
+#midiUndoEditorButton, #midiRedoEditorButton { background: #eef8ff; color: var(--blue-dark); border: 1px solid var(--line); }
+.editor-actions #midiUndoEditorButton:disabled,
+.editor-actions #midiRedoEditorButton:disabled { background: #eef2f6; color: var(--muted); border-color: var(--line); }
