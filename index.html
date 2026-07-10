@@ -149,7 +149,7 @@
 
 
     <section class="card voisona-format-card" aria-labelledby="voisona-format-title">
-      <div class="section-heading"><span>03</span><div><h2 id="voisona-format-title">VoiSona歌詞整形</h2><p>漢字まじりの歌詞を簡易辞書でひらがな化し、記号を整理してVoiSonaやMIDI歌詞割り当て補助へ渡しやすい形にします。</p></div></div>
+      <div class="section-heading"><span>03</span><div><h2 id="voisona-format-title">VoiSona歌詞整形</h2><p>漢字かな交じりの歌詞をkuromoji.jsでひらがな化し、記号を整理してVoiSonaやMIDI歌詞割り当て補助へ渡しやすい形にします。</p></div></div>
       <div class="voisona-grid">
         <div class="sub-card">
           <h3>元歌詞</h3>
@@ -163,11 +163,13 @@
             <button type="button" id="voisonaNormalizeLinesButton">改行を整理</button>
             <button type="button" id="voisonaNormalizeSpacesButton">空白を整理</button>
           </div>
+          <p id="voisonaTokenizerStatus" class="tokenizer-status" aria-live="polite">変換準備中</p>
+          <label class="inline-option"><input id="voisonaCleanupOnConvert" type="checkbox" checked /> 変換時に鍵かっこ・句読点・記号を省く</label>
           <label>改行整理モード<select id="voisonaNewlineMode"><option value="keep">改行を残す</option><option value="space">改行を空白に変える</option></select></label>
         </div>
         <div class="sub-card">
           <h3>編集と出力</h3>
-          <label>ひらがな歌詞（編集できます）<textarea id="voisonaHiraganaLyrics" rows="8" placeholder="辞書にない漢字はそのまま残るので、ここで手直ししてください"></textarea></label>
+          <label>ひらがな歌詞（編集できます）<textarea id="voisonaHiraganaLyrics" rows="8" placeholder="kuromojiで読めなかった部分はそのまま残るので、ここで手直ししてください"></textarea></label>
           <label>出力形式<select id="voisonaOutputFormat"><option value="slash">スラッシュ区切り（み / ら / い）</option><option value="space">スペース区切り（み ら い）</option></select></label>
           <label>VoiSona用の区切り済み歌詞<textarea id="voisonaSeparatedOutput" rows="7" readonly placeholder="ひらがな歌詞を整えると自動で表示されます"></textarea></label>
           <div class="button-grid">
@@ -233,6 +235,7 @@
   </main>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/build/kuromoji.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

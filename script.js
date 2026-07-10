@@ -15,15 +15,11 @@ const otherFieldMap = { genre: "genreOther", mood: "moodOther", timeSignature: "
 const checklistItems = ["AIで曲を作る", "ステム分離する", "Logic Proで編集する", "MIDIを作る", "VoiSonaで歌わせる", "RVCまたはApplioで自分の声に変える", "ミックスする", "書き出す"];
 const lyricLabels = { lyricsIntro: "イントロ", lyricsVerseA: "Aメロ", lyricsVerseB: "Bメロ", lyricsChorus: "サビ", lyricsInterlude: "間奏", lyricsFinalChorus: "ラスサビ" };
 const fieldIds = ["title", ...Object.keys(selectOptions), ...Object.values(otherFieldMap), "reference", ...Object.keys(lyricLabels), "promptJa", "promptEn"];
-const voisonaDictionary = {
-  "思い出": "おもいで", "未来": "みらい", "世界": "せかい", "記憶": "きおく", "希望": "きぼう", "奇跡": "きせき", "明日": "あした", "今日": "きょう", "昨日": "きのう", "永遠": "えいえん", "約束": "やくそく",
-  "走り出す": "はしりだす", "走る": "はしる", "行く": "いく", "帰る": "かえる", "笑う": "わらう", "泣く": "なく", "生きる": "いきる", "消える": "きえる", "輝く": "かがやく",
-  "夢": "ゆめ", "光": "ひかり", "空": "そら", "星": "ほし", "月": "つき", "風": "かぜ", "君": "きみ", "僕": "ぼく", "私": "わたし", "心": "こころ", "涙": "なみだ", "愛": "あい", "声": "こえ", "歌": "うた", "音": "おと", "今": "いま", "時": "とき",
-};
 const voisonaBrackets = /[「」『』（）]/g;
 const voisonaPunctuation = /[、。，．]/g;
 const voisonaSymbols = /[!！?？…・♪♡☆★\-—〜~]/g;
 let midiState = null;
+let voisonaTokenizerLoading = false;
 
 class MidiReader {
   constructor(buffer) { this.view = new DataView(buffer); this.pos = 0; }
@@ -152,10 +148,49 @@ function splitJapaneseLyrics(text) {
   return units;
 }
 
-function convertKanjiToHiragana(text) {
-  return Object.entries(voisonaDictionary)
-    .sort((a, b) => b[0].length - a[0].length)
-    .reduce((result, [word, reading]) => result.replaceAll(word, reading), text);
+function setVoisonaTokenizerStatus(message, state = "loading") {
+  const status = $("voisonaTokenizerStatus");
+  if (!status) return;
+  status.textContent = message;
+  status.classList.toggle("is-loading", state === "loading");
+  status.classList.toggle("is-error", state === "error");
+}
+
+function initVoisonaTokenizer() {
+  if (window.voisonaTokenizer || voisonaTokenizerLoading) return;
+  if (!window.kuromoji?.builder) {
+    setVoisonaTokenizerStatus("kuromoji.jsを読み込めませんでした", "error");
+    return;
+  }
+  voisonaTokenizerLoading = true;
+  setVoisonaTokenizerStatus("変換準備中", "loading");
+  window.kuromoji.builder({
+    dicPath: "https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/dict/"
+  }).build(function (err, tokenizer) {
+    voisonaTokenizerLoading = false;
+    if (err) {
+      console.error(err);
+      setVoisonaTokenizerStatus("ひらがな変換の準備に失敗しました", "error");
+      return;
+    }
+    window.voisonaTokenizer = tokenizer;
+    setVoisonaTokenizerStatus("ひらがな変換できます", "ready");
+  });
+}
+
+function katakanaToHiragana(text) {
+  return text.replace(/[\u30a1-\u30f6]/g, function(match) {
+    return String.fromCharCode(match.charCodeAt(0) - 0x60);
+  });
+}
+
+function convertKanjiToHiragana(text, options = {}) {
+  if (!window.voisonaTokenizer) return null;
+  const converted = window.voisonaTokenizer.tokenize(text).map((token) => {
+    const reading = token.reading || token.surface_form || "";
+    return katakanaToHiragana(reading);
+  }).join("");
+  return applyVoisonaCleanup(converted, options);
 }
 
 function normalizeVoisonaSpaces(text) {
@@ -191,6 +226,7 @@ function getVoisonaProjectData() {
     cleanedLyrics: applyVoisonaCleanup(getVoisonaEditableText(), { brackets: true, punctuation: true, symbols: true, newlinesToSpaces: $("voisonaNewlineMode")?.value === "space" }),
     outputFormat: $("voisonaOutputFormat")?.value || "slash",
     newlineMode: $("voisonaNewlineMode")?.value || "keep",
+    cleanupOnConvert: $("voisonaCleanupOnConvert")?.checked !== false,
     separatedOutput: $("voisonaSeparatedOutput")?.value || "",
   };
 }
@@ -201,19 +237,28 @@ function setVoisonaProjectData(data) {
   $("voisonaHiraganaLyrics").value = data?.hiraganaLyrics || data?.cleanedLyrics || "";
   $("voisonaOutputFormat").value = data?.outputFormat || "slash";
   $("voisonaNewlineMode").value = data?.newlineMode || "keep";
+  if ($("voisonaCleanupOnConvert")) $("voisonaCleanupOnConvert").checked = data?.cleanupOnConvert !== false;
   updateVoisonaOutput();
 }
 
 function setupVoisonaEvents() {
   if (!$("voisonaKanjiLyrics")) return;
-  $("voisonaConvertButton").addEventListener("click", () => { $("voisonaHiraganaLyrics").value = convertKanjiToHiragana($("voisonaKanjiLyrics").value); updateVoisonaOutput(); scheduleAutoSave(); showToast("簡易ひらがな変換しました"); });
+  $("voisonaConvertButton").addEventListener("click", () => {
+    const shouldCleanup = $("voisonaCleanupOnConvert")?.checked !== false;
+    const converted = convertKanjiToHiragana($("voisonaKanjiLyrics").value, { brackets: shouldCleanup, punctuation: shouldCleanup, symbols: shouldCleanup, newlinesToSpaces: $("voisonaNewlineMode").value === "space" });
+    if (converted === null) { initVoisonaTokenizer(); showToast("変換準備中です。少し待ってから再度お試しください"); return; }
+    $("voisonaHiraganaLyrics").value = converted;
+    updateVoisonaOutput();
+    scheduleAutoSave();
+    showToast("kuromojiでひらがな変換しました");
+  });
   $("voisonaRemoveSymbolsButton").addEventListener("click", () => { $("voisonaHiraganaLyrics").value = applyVoisonaCleanup(getVoisonaEditableText(), { brackets: true, punctuation: true, symbols: true, newlinesToSpaces: $("voisonaNewlineMode").value === "space" }); updateVoisonaOutput(); scheduleAutoSave(); showToast("記号を整理しました"); });
   $("voisonaRemoveBracketsButton").addEventListener("click", () => { $("voisonaHiraganaLyrics").value = applyVoisonaCleanup(getVoisonaEditableText(), { brackets: true }); updateVoisonaOutput(); scheduleAutoSave(); showToast("鍵かっこを省きました"); });
   $("voisonaRemovePunctuationButton").addEventListener("click", () => { $("voisonaHiraganaLyrics").value = applyVoisonaCleanup(getVoisonaEditableText(), { punctuation: true }); updateVoisonaOutput(); scheduleAutoSave(); showToast("句読点を省きました"); });
   $("voisonaNormalizeLinesButton").addEventListener("click", () => { $("voisonaHiraganaLyrics").value = applyVoisonaCleanup(getVoisonaEditableText(), { newlinesToSpaces: $("voisonaNewlineMode").value === "space" }); updateVoisonaOutput(); scheduleAutoSave(); showToast("改行を整理しました"); });
   $("voisonaNormalizeSpacesButton").addEventListener("click", () => { $("voisonaHiraganaLyrics").value = normalizeVoisonaSpaces(getVoisonaEditableText()); updateVoisonaOutput(); scheduleAutoSave(); showToast("空白を整理しました"); });
   $("voisonaSendToMidiButton").addEventListener("click", () => { $("midiLyricsInput").value = applyVoisonaCleanup(getVoisonaEditableText(), { brackets: true, punctuation: true, symbols: true, newlinesToSpaces: true }); updateMidiLyricsAllocation(); scheduleAutoSave(); showToast("MIDI歌詞割り当て補助へ送りました"); });
-  ["voisonaKanjiLyrics", "voisonaHiraganaLyrics", "voisonaOutputFormat", "voisonaNewlineMode"].forEach((id) => $(id).addEventListener("input", () => { updateVoisonaOutput(); scheduleAutoSave(); }));
+  ["voisonaKanjiLyrics", "voisonaHiraganaLyrics", "voisonaOutputFormat", "voisonaNewlineMode", "voisonaCleanupOnConvert"].forEach((id) => $(id).addEventListener("input", () => { updateVoisonaOutput(); scheduleAutoSave(); }));
 }
 
 function updateMidiLyricsAllocation() {
@@ -442,5 +487,5 @@ function setupEvents() {
   $("saveButton").addEventListener("click", () => saveProject(true)); $("exportButton").addEventListener("click", exportJson); $("importFile").addEventListener("change", importJson); $("resetButton").addEventListener("click", resetProject); $("generateButton").addEventListener("click", generatePrompts);
 }
 
-function init() { fillSelects(); $("bpm").value = "120"; renderChecklist(); loadProject(); Object.keys(otherFieldMap).forEach(updateOtherVisibility); setupEvents(); }
+function init() { fillSelects(); $("bpm").value = "120"; renderChecklist(); loadProject(); Object.keys(otherFieldMap).forEach(updateOtherVisibility); setupEvents(); initVoisonaTokenizer(); }
 document.addEventListener("DOMContentLoaded", init);
