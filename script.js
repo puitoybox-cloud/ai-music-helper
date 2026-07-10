@@ -333,16 +333,16 @@ function renderMidiNoteEditor() {
   }
   midiEditorData.forEach((measure, measureIndex) => {
     const card = document.createElement("section");
-    card.className = "midi-measure-card";
+    card.className = "midi-measure-card measure-card";
     const title = document.createElement("h5");
     title.textContent = `小節 ${measure.measure}`;
     card.appendChild(title);
     const notes = document.createElement("div");
-    notes.className = "midi-note-inputs";
+    notes.className = "midi-note-inputs note-edit-table";
     measure.lyrics.forEach((lyric, noteIndex) => {
       const label = document.createElement("label");
-      label.className = "midi-note-cell";
-      label.innerHTML = `<span>音符${noteIndex + 1}</span><input type="text" value="" data-measure-index="${measureIndex}" data-note-index="${noteIndex}" autocomplete="off" />`;
+      label.className = "midi-note-cell note-cell";
+      label.innerHTML = `<span>音符${noteIndex + 1}</span><input class="note-input" type="text" value="" data-measure-index="${measureIndex}" data-note-index="${noteIndex}" autocomplete="off" />`;
       label.querySelector("input").value = lyric;
       notes.appendChild(label);
     });
