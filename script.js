@@ -21,6 +21,10 @@ const voisonaSymbols = /[!！?？…・♪♡☆★\-—〜~]/g;
 let midiState = null;
 let midiEditorData = [];
 let midiEditorOverflow = [];
+// Compatibility aliases for the note-by-note editor requested in the UI spec.
+// noteEditItems mirrors the editable per-measure lyrics, and measureNoteCounts mirrors MIDI note counts per measure.
+let noteEditItems = midiEditorData;
+let measureNoteCounts = [];
 let midiSelectedCell = { measureIndex: 0, noteIndex: 0 };
 let noteEditHistory = [];
 let noteEditHistoryIndex = -1;
@@ -295,10 +299,16 @@ function updateMidiLyricsAllocation(resetEditor = true) {
   else { ensureMidiEditorShape(); renderMidiNoteEditor(); }
 }
 
+function syncNoteEditorAliases() {
+  noteEditItems = midiEditorData;
+  measureNoteCounts = midiState ? getTrackMeasureCounts(midiState.parsed, getSelectedMidiTrackIndex()) : [];
+}
+
 function getMidiAutoEditorData() {
-  if (!midiState) return [];
+  if (!midiState) { syncNoteEditorAliases(); return []; }
   const units = splitJapaneseLyrics($("midiLyricsInput")?.value || "");
   const counts = getTrackMeasureCounts(midiState.parsed, getSelectedMidiTrackIndex());
+  measureNoteCounts = counts;
   let cursor = 0;
   return counts.map((item) => {
     const lyrics = Array.from({ length: item.count }, () => units[cursor++] || "");
@@ -321,6 +331,7 @@ function setMidiEditorFromFlat(flat, overflow = []) {
     return { ...measure, lyrics };
   });
   midiEditorOverflow = overflow;
+  syncNoteEditorAliases();
 }
 
 function getNoteEditHistoryState() {
@@ -550,6 +561,7 @@ function ensureMidiEditorShape() {
     midiEditorData = autoData;
     midiEditorOverflow = [];
   }
+  syncNoteEditorAliases();
 }
 
 function getMidiEditorInput(measureIndex, noteIndex) {
@@ -605,7 +617,12 @@ function commitNoteInput(input, { renderAfterShift = false } = {}) {
   }
 }
 
+function renderNoteEditor(options = {}) {
+  return renderMidiNoteEditor(options);
+}
+
 function renderMidiNoteEditor(options = {}) {
+  syncNoteEditorAliases();
   const editor = $("midiNoteEditor");
   if (!editor) return;
   editor.innerHTML = "";
@@ -631,7 +648,7 @@ function renderMidiNoteEditor(options = {}) {
       const label = document.createElement("label");
       const isSelected = midiSelectedCell.measureIndex === measureIndex && midiSelectedCell.noteIndex === noteIndex;
       label.className = `midi-note-cell note-cell${isSelected ? " is-selected" : ""}`;
-      label.innerHTML = `<span>音符${noteIndex + 1}</span><input class="note-input" type="text" value="" data-measure-index="${measureIndex}" data-note-index="${noteIndex}" data-old-value="" autocomplete="off" /><div class="note-cell-actions"><button type="button" data-note-action="insert" data-measure-index="${measureIndex}" data-note-index="${noteIndex}">この位置で1音追加</button><button type="button" data-note-action="delete" data-measure-index="${measureIndex}" data-note-index="${noteIndex}">この音を削除して前に詰める</button><button type="button" data-note-action="merge" data-measure-index="${measureIndex}" data-note-index="${noteIndex}">右と結合</button><button type="button" data-note-action="split" data-measure-index="${measureIndex}" data-note-index="${noteIndex}">ここで分割</button></div>`;
+      label.innerHTML = `<span>音符${noteIndex + 1}</span><input class="note-input" type="text" value="" data-measure-index="${measureIndex}" data-note-index="${noteIndex}" data-old-value="" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="text" aria-label="小節${measure.measure} 音符${noteIndex + 1}" /><div class="note-cell-actions"><button type="button" data-note-action="insert" data-measure-index="${measureIndex}" data-note-index="${noteIndex}">この位置で1音追加</button><button type="button" data-note-action="delete" data-measure-index="${measureIndex}" data-note-index="${noteIndex}">この音を削除して前に詰める</button><button type="button" data-note-action="merge" data-measure-index="${measureIndex}" data-note-index="${noteIndex}">右と結合</button><button type="button" data-note-action="split" data-measure-index="${measureIndex}" data-note-index="${noteIndex}">ここで分割</button></div>`;
       const input = label.querySelector("input");
       input.value = lyric;
       input.dataset.oldValue = lyric;
