@@ -148,8 +148,39 @@
     </section>
 
 
+    <section class="card voisona-format-card" aria-labelledby="voisona-format-title">
+      <div class="section-heading"><span>03</span><div><h2 id="voisona-format-title">VoiSona歌詞整形</h2><p>漢字まじりの歌詞を簡易辞書でひらがな化し、記号を整理してVoiSonaやMIDI歌詞割り当て補助へ渡しやすい形にします。</p></div></div>
+      <div class="voisona-grid">
+        <div class="sub-card">
+          <h3>元歌詞</h3>
+          <label>漢字まじり歌詞<textarea id="voisonaKanjiLyrics" rows="8" placeholder="例：未来へ走る 君の声
+「光る世界」へ"></textarea></label>
+          <div class="button-grid">
+            <button type="button" id="voisonaConvertButton" class="primary">ひらがな変換</button>
+            <button type="button" id="voisonaRemoveSymbolsButton">記号を省く</button>
+            <button type="button" id="voisonaRemoveBracketsButton">鍵かっこを省く</button>
+            <button type="button" id="voisonaRemovePunctuationButton">句読点を省く</button>
+            <button type="button" id="voisonaNormalizeLinesButton">改行を整理</button>
+            <button type="button" id="voisonaNormalizeSpacesButton">空白を整理</button>
+          </div>
+          <label>改行整理モード<select id="voisonaNewlineMode"><option value="keep">改行を残す</option><option value="space">改行を空白に変える</option></select></label>
+        </div>
+        <div class="sub-card">
+          <h3>編集と出力</h3>
+          <label>ひらがな歌詞（編集できます）<textarea id="voisonaHiraganaLyrics" rows="8" placeholder="辞書にない漢字はそのまま残るので、ここで手直ししてください"></textarea></label>
+          <label>出力形式<select id="voisonaOutputFormat"><option value="slash">スラッシュ区切り（み / ら / い）</option><option value="space">スペース区切り（み ら い）</option></select></label>
+          <label>VoiSona用の区切り済み歌詞<textarea id="voisonaSeparatedOutput" rows="7" readonly placeholder="ひらがな歌詞を整えると自動で表示されます"></textarea></label>
+          <div class="button-grid">
+            <button type="button" id="voisonaCopyOutputButton" class="copy-button" data-copy-target="voisonaSeparatedOutput">出力をコピー</button>
+            <button type="button" id="voisonaSendToMidiButton" class="primary">MIDI歌詞割り当て補助へ送る</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+
     <section class="card midi-helper-card" aria-labelledby="midi-lyrics-title">
-      <div class="section-heading"><span>03</span><div><h2 id="midi-lyrics-title">MIDI歌詞割り当て補助</h2><p>VoiSonaに歌詞を入れやすいように、歌メロMIDIの小節ごとの音符数に合わせてひらがな歌詞を分けます。</p></div></div>
+      <div class="section-heading"><span>04</span><div><h2 id="midi-lyrics-title">MIDI歌詞割り当て補助</h2><p>VoiSonaに歌詞を入れやすいように、歌メロMIDIの小節ごとの音符数に合わせてひらがな歌詞を分けます。</p></div></div>
       <div class="midi-card-grid">
         <div class="sub-card">
           <h3>MIDI読み込み</h3>
@@ -187,7 +218,7 @@
 
 
     <section class="card" aria-labelledby="prompt-title">
-      <div class="section-heading"><span>04</span><div><h2 id="prompt-title">プロンプト生成</h2><p>選択した内容と自由入力、歌詞を反映して日本語・英語プロンプトを生成します。</p></div></div>
+      <div class="section-heading"><span>05</span><div><h2 id="prompt-title">プロンプト生成</h2><p>選択した内容と自由入力、歌詞を反映して日本語・英語プロンプトを生成します。</p></div></div>
       <button type="button" id="generateButton" class="primary wide">日本語・英語プロンプトを生成</button>
       <div class="grid prompt-grid">
         <div><label>日本語プロンプト<textarea id="promptJa" rows="11" readonly placeholder="生成ボタンを押すと表示されます"></textarea></label><button type="button" class="copy-button" data-copy-target="promptJa">日本語をコピー</button></div>
@@ -196,7 +227,7 @@
     </section>
 
     <section class="card" aria-labelledby="checklist-title">
-      <div class="section-heading"><span>05</span><div><h2 id="checklist-title">制作チェックリスト</h2><p>AI制作から書き出しまでの進行状況を保存できます。</p></div></div>
+      <div class="section-heading"><span>06</span><div><h2 id="checklist-title">制作チェックリスト</h2><p>AI制作から書き出しまでの進行状況を保存できます。</p></div></div>
       <div id="checklist" class="checklist" aria-live="polite"></div>
     </section>
   </main>
