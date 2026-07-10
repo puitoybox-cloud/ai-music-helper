@@ -530,12 +530,14 @@ function restoreMidiEditorFocus(focusTarget = midiSelectedCell) {
   });
 }
 
-function updateNoteValueOnly(input) {
-  const measureIndex = Number(input.dataset.measureIndex);
-  const noteIndex = Number(input.dataset.noteIndex);
-  midiSelectedCell = { measureIndex, noteIndex };
+function updateNoteValueOnly(inputOrMeasureIndex, noteIndex, value) {
+  const input = inputOrMeasureIndex instanceof HTMLInputElement ? inputOrMeasureIndex : null;
+  const measureIndex = input ? Number(input.dataset.measureIndex) : Number(inputOrMeasureIndex);
+  const resolvedNoteIndex = input ? Number(input.dataset.noteIndex) : Number(noteIndex);
+  const nextValue = input ? input.value : value;
+  midiSelectedCell = { measureIndex, noteIndex: resolvedNoteIndex };
   if (midiEditorData[measureIndex]?.lyrics) {
-    midiEditorData[measureIndex].lyrics[noteIndex] = input.value;
+    midiEditorData[measureIndex].lyrics[resolvedNoteIndex] = nextValue;
   }
   updateMidiSelectedCellClasses();
   updateMidiOverflowDisplay();
@@ -550,6 +552,9 @@ function commitNoteInput(input, { renderAfterShift = false } = {}) {
   midiSelectedCell = { measureIndex, noteIndex };
   if (oldValue === newValue) return;
   if ($("midiAutoShiftMode")?.checked) {
+    if (midiEditorData[measureIndex]?.lyrics) {
+      midiEditorData[measureIndex].lyrics[noteIndex] = oldValue;
+    }
     applyMidiEditorShift(getFlatIndex(measureIndex, noteIndex), newValue, oldValue);
     buildMidiOutputFromEditor(false);
     pushNoteEditHistory();
@@ -700,6 +705,7 @@ function setupMidiEvents() {
     const input = event.target.closest("input[data-measure-index][data-note-index]");
     if (!input) return;
     updateNoteValueOnly(input);
+    if (isComposingNoteText) return;
   });
   $("midiNoteEditor").addEventListener("keydown", (event) => {
     const input = event.target.closest("input[data-measure-index][data-note-index]");
