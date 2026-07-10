@@ -27,14 +27,109 @@
       <div class="section-heading"><span>01</span><div><h2 id="basic-title">基本情報</h2><p>曲の方向性を選択肢で素早く整理します。「その他」は自由入力も反映されます。</p></div></div>
       <div class="grid two-columns">
         <label>曲名<input id="title" type="text" placeholder="例：夜明けのシグナル" autocomplete="off" /></label>
-        <div class="field-with-other"><label for="genre">ジャンル</label><select id="genre"></select><input id="genreOther" class="other-input" type="text" placeholder="その他のジャンルを入力" /></div>
-        <div class="field-with-other"><label for="mood">曲の雰囲気</label><select id="mood"></select><input id="moodOther" class="other-input" type="text" placeholder="その他の雰囲気を入力" /></div>
-        <label>キー<select id="key"></select></label>
-        <label>BPM目安<select id="bpm"></select></label>
-        <div class="field-with-other"><label for="timeSignature">拍子</label><select id="timeSignature"></select><input id="timeSignatureOther" class="other-input" type="text" placeholder="その他の拍子を入力（例：5/4）" /></div>
-        <div class="field-with-other"><label for="vocalType">ボーカルタイプ</label><select id="vocalType"></select><input id="vocalTypeOther" class="other-input" type="text" placeholder="その他のボーカルタイプを入力" /></div>
-        <div class="field-with-other"><label for="language">使用言語</label><select id="language"></select><input id="languageOther" class="other-input" type="text" placeholder="その他の使用言語を入力" /></div>
-        <label>AI向け出力タイプ<select id="outputType"></select></label>
+        <div class="field-with-other"><label for="genre">ジャンル</label><select id="genre">
+            <option value="J-POP">J-POP</option>
+            <option value="アニソン">アニソン</option>
+            <option value="バラード">バラード</option>
+            <option value="ロック">ロック</option>
+            <option value="EDM">EDM</option>
+            <option value="オーケストラ">オーケストラ</option>
+            <option value="かわいい系">かわいい系</option>
+            <option value="かっこいい系">かっこいい系</option>
+            <option value="ジャズ">ジャズ</option>
+            <option value="Lo-fi">Lo-fi</option>
+            <option value="エレクトロ">エレクトロ</option>
+            <option value="その他">その他</option>
+          </select><input id="genreOther" class="other-input" type="text" placeholder="その他のジャンルを入力" /></div>
+        <div class="field-with-other"><label for="mood">曲の雰囲気</label><select id="mood">
+            <option value="明るい">明るい</option>
+            <option value="切ない">切ない</option>
+            <option value="かわいい">かわいい</option>
+            <option value="神秘的">神秘的</option>
+            <option value="爽やか">爽やか</option>
+            <option value="エモい">エモい</option>
+            <option value="壮大">壮大</option>
+            <option value="激しい">激しい</option>
+            <option value="優しい">優しい</option>
+            <option value="不穏">不穏</option>
+            <option value="幻想的">幻想的</option>
+            <option value="泣ける">泣ける</option>
+            <option value="希望的">希望的</option>
+            <option value="その他">その他</option>
+          </select><input id="moodOther" class="other-input" type="text" placeholder="その他の雰囲気を入力" /></div>
+        <label>キー<select id="key">
+            <option value="C">C</option>
+            <option value="C#">C#</option>
+            <option value="D">D</option>
+            <option value="D#">D#</option>
+            <option value="E">E</option>
+            <option value="F">F</option>
+            <option value="F#">F#</option>
+            <option value="G">G</option>
+            <option value="G#">G#</option>
+            <option value="A">A</option>
+            <option value="A#">A#</option>
+            <option value="B">B</option>
+            <option value="Cm">Cm</option>
+            <option value="C#m">C#m</option>
+            <option value="Dm">Dm</option>
+            <option value="D#m">D#m</option>
+            <option value="Em">Em</option>
+            <option value="Fm">Fm</option>
+            <option value="F#m">F#m</option>
+            <option value="Gm">Gm</option>
+            <option value="G#m">G#m</option>
+            <option value="Am">Am</option>
+            <option value="A#m">A#m</option>
+            <option value="Bm">Bm</option>
+          </select></label>
+        <label>BPM目安<select id="bpm">
+            <option value="60">60</option>
+            <option value="70">70</option>
+            <option value="80">80</option>
+            <option value="90">90</option>
+            <option value="100">100</option>
+            <option value="110">110</option>
+            <option value="120" selected>120</option>
+            <option value="130">130</option>
+            <option value="140">140</option>
+            <option value="150">150</option>
+            <option value="160">160</option>
+          </select></label>
+        <div class="field-with-other"><label for="timeSignature">拍子</label><select id="timeSignature">
+            <option value="4/4">4/4</option>
+            <option value="3/4">3/4</option>
+            <option value="6/8">6/8</option>
+            <option value="2/4">2/4</option>
+            <option value="12/8">12/8</option>
+            <option value="その他">その他</option>
+          </select><input id="timeSignatureOther" class="other-input" type="text" placeholder="その他の拍子を入力（例：5/4）" /></div>
+        <div class="field-with-other"><label for="vocalType">ボーカルタイプ</label><select id="vocalType">
+            <option value="女性ソロ">女性ソロ</option>
+            <option value="男性ソロ">男性ソロ</option>
+            <option value="少女声">少女声</option>
+            <option value="少年声">少年声</option>
+            <option value="中性的">中性的</option>
+            <option value="デュエット">デュエット</option>
+            <option value="コーラス中心">コーラス中心</option>
+            <option value="インスト">インスト</option>
+            <option value="その他">その他</option>
+          </select><input id="vocalTypeOther" class="other-input" type="text" placeholder="その他のボーカルタイプを入力" /></div>
+        <div class="field-with-other"><label for="language">使用言語</label><select id="language">
+            <option value="日本語">日本語</option>
+            <option value="英語">英語</option>
+            <option value="日本語＋英語">日本語＋英語</option>
+            <option value="インスト">インスト</option>
+            <option value="その他">その他</option>
+          </select><input id="languageOther" class="other-input" type="text" placeholder="その他の使用言語を入力" /></div>
+        <label>AI向け出力タイプ<select id="outputType">
+            <option value="汎用AI音楽用">汎用AI音楽用</option>
+            <option value="Suno向け">Suno向け</option>
+            <option value="Udio向け">Udio向け</option>
+            <option value="TopMediai向け">TopMediai向け</option>
+            <option value="短めプロンプト">短めプロンプト</option>
+            <option value="詳細プロンプト">詳細プロンプト</option>
+          </select></label>
       </div>
       <label class="full-field">参考イメージメモ<textarea id="reference" rows="4" placeholder="参考曲、音色、映像、歌声、アレンジの方向性などをメモ"></textarea></label>
     </section>
