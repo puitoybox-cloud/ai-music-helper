@@ -17,7 +17,7 @@ const lyricLabels = { lyricsIntro: "イントロ", lyricsVerseA: "Aメロ", lyri
 const fieldIds = ["title", ...Object.keys(selectOptions), ...Object.values(otherFieldMap), "reference", ...Object.keys(lyricLabels), "promptJa", "promptEn"];
 const voisonaDictionary = {
   "思い出": "おもいで", "未来": "みらい", "世界": "せかい", "記憶": "きおく", "希望": "きぼう", "奇跡": "きせき", "明日": "あした", "今日": "きょう", "昨日": "きのう", "永遠": "えいえん", "約束": "やくそく",
-  "走る": "はしる", "行く": "いく", "帰る": "かえる", "笑う": "わらう", "泣く": "なく", "生きる": "いきる", "消える": "きえる", "輝く": "かがやく",
+  "走り出す": "はしりだす", "走る": "はしる", "行く": "いく", "帰る": "かえる", "笑う": "わらう", "泣く": "なく", "生きる": "いきる", "消える": "きえる", "輝く": "かがやく",
   "夢": "ゆめ", "光": "ひかり", "空": "そら", "星": "ほし", "月": "つき", "風": "かぜ", "君": "きみ", "僕": "ぼく", "私": "わたし", "心": "こころ", "涙": "なみだ", "愛": "あい", "声": "こえ", "歌": "うた", "音": "おと", "今": "いま", "時": "とき",
 };
 const voisonaBrackets = /[「」『』（）]/g;
@@ -138,12 +138,12 @@ function renderMidiAnalysis() {
 }
 
 function splitJapaneseLyrics(text) {
-  const combineYoon = $("midiCombineSmallYoon").checked;
-  const combineLong = $("midiLongVowelMode").checked;
-  const countSmallTsu = $("midiSmallTsuMode").checked;
-  const chars = Array.from(text.normalize("NFKC")).filter((ch) => /[ぁ-ゖー]/.test(ch));
+  const combineYoon = $("midiCombineSmallYoon")?.checked ?? true;
+  const combineLong = $("midiLongVowelMode")?.checked ?? false;
+  const countSmallTsu = $("midiSmallTsuMode")?.checked ?? true;
   const units = [];
-  chars.forEach((ch) => {
+  Array.from(text.normalize("NFKC")).forEach((ch) => {
+    if (/\s/.test(ch)) return;
     if (combineYoon && "ゃゅょぁぃぅぇぉゎ".includes(ch) && units.length) units[units.length - 1] += ch;
     else if (ch === "ー" && combineLong && units.length) units[units.length - 1] += ch;
     else if (ch === "っ" && !countSmallTsu && units.length) units[units.length - 1] += ch;
