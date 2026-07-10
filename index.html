@@ -149,28 +149,33 @@
 
 
     <section class="card voisona-format-card" aria-labelledby="voisona-format-title">
-      <div class="section-heading"><span>03</span><div><h2 id="voisona-format-title">VoiSona歌詞整形</h2><p>漢字かな交じりの歌詞をKuroshiro + Kuromoji Analyzerでひらがな化し、記号を整理してVoiSonaやMIDI歌詞割り当て補助へ渡しやすい形にします。</p></div></div>
+      <div class="section-heading"><span>03</span><div><h2 id="voisona-format-title">VoiSona歌詞整形</h2><p>ChatGPT用プロンプトと手直し前提の簡易変換で、VoiSonaやMIDI歌詞割り当て補助へ渡しやすいひらがな歌詞を整えます。</p></div></div>
       <div class="voisona-grid">
         <div class="sub-card">
           <h3>元歌詞</h3>
           <label>漢字まじり歌詞<textarea id="voisonaKanjiLyrics" rows="8" placeholder="例：未来へ走る 君の声
 「光る世界」へ"></textarea></label>
+          <p class="helper-text">自動ひらがな変換がうまくいかない場合は、ChatGPT用プロンプトをコピーしてChatGPTで変換し、結果をここに貼り付けてください。</p>
           <div class="button-grid">
-            <button type="button" id="voisonaConvertButton" class="primary">ひらがな変換</button>
+            <button type="button" id="voisonaConvertButton" class="primary">簡易ひらがな変換</button>
+            <button type="button" id="voisonaBuildChatGptPromptButton" class="primary">ChatGPT用ひらがな変換プロンプトを作る</button>
+          </div>
+          <p id="hiraganaStatus" class="tokenizer-status is-ready" aria-live="polite">外部ライブラリなしの簡易変換です。漢字は削除せず残すので、必要に応じて手直ししてください。</p>
+          <label>ChatGPT用プロンプト<textarea id="voisonaChatGptPrompt" rows="10" readonly placeholder="ボタンを押すと元歌詞からChatGPT用の依頼文を作ります"></textarea></label>
+          <button type="button" id="voisonaCopyChatGptPromptButton" class="copy-button" data-copy-target="voisonaChatGptPrompt">ChatGPT用プロンプトをコピー</button>
+          <label class="inline-option"><input id="voisonaCleanupOnConvert" type="checkbox" checked /> 変換時に鍵かっこ・句読点・記号を省く</label>
+          <label>改行整理モード<select id="voisonaNewlineMode"><option value="keep">改行を残す</option><option value="space">改行を空白に変える</option></select></label>
+        </div>
+        <div class="sub-card">
+          <h3>編集と出力</h3>
+          <label>ChatGPTで変換したひらがな歌詞 / 手直し結果（編集できます）<textarea id="voisonaHiraganaLyrics" rows="8" placeholder="ChatGPTで変換したひらがな歌詞を貼り付けるか、簡易変換後にここで手直ししてください"></textarea></label>
+          <div class="button-grid">
             <button type="button" id="voisonaRemoveSymbolsButton">記号を省く</button>
             <button type="button" id="voisonaRemoveBracketsButton">鍵かっこを省く</button>
             <button type="button" id="voisonaRemovePunctuationButton">句読点を省く</button>
             <button type="button" id="voisonaNormalizeLinesButton">改行を整理</button>
             <button type="button" id="voisonaNormalizeSpacesButton">空白を整理</button>
           </div>
-          <p class="status-label">変換状態：</p>
-          <p id="hiraganaStatus" class="tokenizer-status" aria-live="polite">Kuroshiro読み込み中</p>
-          <label class="inline-option"><input id="voisonaCleanupOnConvert" type="checkbox" checked /> 変換時に鍵かっこ・句読点・記号を省く</label>
-          <label>改行整理モード<select id="voisonaNewlineMode"><option value="keep">改行を残す</option><option value="space">改行を空白に変える</option></select></label>
-        </div>
-        <div class="sub-card">
-          <h3>編集と出力</h3>
-          <label>ひらがな歌詞（編集できます）<textarea id="voisonaHiraganaLyrics" rows="8" placeholder="変換できなかった部分はそのまま残るので、ここで手直ししてください"></textarea></label>
           <label>出力形式<select id="voisonaOutputFormat"><option value="slash">スラッシュ区切り（み / ら / い）</option><option value="space">スペース区切り（み ら い）</option></select></label>
           <label>VoiSona用の区切り済み歌詞<textarea id="voisonaSeparatedOutput" rows="7" readonly placeholder="ひらがな歌詞を整えると自動で表示されます"></textarea></label>
           <div class="button-grid">
@@ -236,8 +241,6 @@
   </main>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="https://cdn.jsdelivr.net/npm/kuroshiro@1.2.0/dist/kuroshiro.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/kuroshiro-analyzer-kuromoji@1.1.0/dist/kuroshiro-analyzer-kuromoji.min.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
