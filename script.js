@@ -20,6 +20,8 @@ const voisonaPunctuation = /[、。]/g;
 const voisonaSymbols = /[!！?？…・♪♡☆★\-—〜~]/g;
 let midiState = null;
 let midiEditorData = [];
+let midiEditorOverflow = [];
+let midiSelectedCell = { measureIndex: 0, noteIndex: 0 };
 
 class MidiReader {
   constructor(buffer) { this.view = new DataView(buffer); this.pos = 0; }
@@ -307,8 +309,105 @@ function getMidiEditorSignature(data = midiEditorData) {
   return data.map((measure) => `${measure.measure}:${measure.lyrics.length}`).join("|");
 }
 
+function flattenMidiEditorData() {
+  return midiEditorData.flatMap((measure) => measure.lyrics);
+}
+
+function setMidiEditorFromFlat(flat, overflow = []) {
+  let cursor = 0;
+  midiEditorData = midiEditorData.map((measure) => {
+    const lyrics = measure.lyrics.map(() => flat[cursor++] || "");
+    return { ...measure, lyrics };
+  });
+  midiEditorOverflow = overflow;
+}
+
+function getFlatIndex(measureIndex, noteIndex) {
+  return midiEditorData.slice(0, measureIndex).reduce((sum, measure) => sum + measure.lyrics.length, 0) + noteIndex;
+}
+
+function updateMidiOverflowDisplay() {
+  const box = $("midiOverflowLyrics");
+  if (!box) return;
+  const sep = $("midiOutputSeparator")?.value === "space" ? " " : " / ";
+  box.hidden = midiEditorOverflow.length === 0;
+  box.innerHTML = midiEditorOverflow.length ? `<strong>あふれた歌詞：</strong><span>${midiEditorOverflow.join(sep) || "（空欄）"}</span>` : "";
+}
+
+function applyMidiEditorShift(flatIndex, newValue, oldValue = "") {
+  const flat = flattenMidiEditorData();
+  const capacity = flat.length;
+  const combined = [...flat, ...midiEditorOverflow];
+  const normalizedNewValue = newValue.trim();
+  if (oldValue && !normalizedNewValue) {
+    combined.splice(flatIndex, 1);
+  } else if (!oldValue && normalizedNewValue) {
+    combined.splice(flatIndex, 0, normalizedNewValue);
+  } else if (oldValue && normalizedNewValue.startsWith(oldValue) && Array.from(normalizedNewValue).length > Array.from(oldValue).length) {
+    combined[flatIndex] = oldValue;
+    combined.splice(flatIndex + 1, 0, normalizedNewValue.slice(oldValue.length));
+  } else {
+    combined[flatIndex] = normalizedNewValue;
+  }
+  while (combined.length < capacity) combined.push("");
+  setMidiEditorFromFlat(combined.slice(0, capacity), combined.slice(capacity).filter((value) => value !== ""));
+}
+
+function updateMidiSelectedCellClasses() {
+  document.querySelectorAll(".midi-note-cell").forEach((cell) => {
+    const input = cell.querySelector("input[data-measure-index][data-note-index]");
+    const isSelected = input && Number(input.dataset.measureIndex) === midiSelectedCell.measureIndex && Number(input.dataset.noteIndex) === midiSelectedCell.noteIndex;
+    cell.classList.toggle("is-selected", Boolean(isSelected));
+  });
+}
+
+function insertMidiEditorNoteAfter(measureIndex, noteIndex) {
+  const flatIndex = getFlatIndex(measureIndex, noteIndex) + 1;
+  const combined = [...flattenMidiEditorData(), ...midiEditorOverflow];
+  const capacity = flattenMidiEditorData().length;
+  combined.splice(flatIndex, 0, "");
+  setMidiEditorFromFlat(combined.slice(0, capacity), combined.slice(capacity).filter((value) => value !== ""));
+  midiSelectedCell = { measureIndex, noteIndex };
+  renderMidiNoteEditor();
+  buildMidiOutputFromEditor(false);
+}
+
+function deleteMidiEditorNote(measureIndex, noteIndex) {
+  applyMidiEditorShift(getFlatIndex(measureIndex, noteIndex), "", midiEditorData[measureIndex]?.lyrics?.[noteIndex] || "");
+  midiSelectedCell = { measureIndex, noteIndex: Math.min(noteIndex, (midiEditorData[measureIndex]?.lyrics?.length || 1) - 1) };
+  renderMidiNoteEditor();
+  buildMidiOutputFromEditor(false);
+}
+
+function mergeMidiEditorNoteRight(measureIndex, noteIndex) {
+  const flatIndex = getFlatIndex(measureIndex, noteIndex);
+  const combined = [...flattenMidiEditorData(), ...midiEditorOverflow];
+  if (flatIndex >= combined.length - 1) return;
+  combined[flatIndex] = `${combined[flatIndex] || ""}${combined[flatIndex + 1] || ""}`;
+  combined.splice(flatIndex + 1, 1);
+  const capacity = flattenMidiEditorData().length;
+  while (combined.length < capacity) combined.push("");
+  setMidiEditorFromFlat(combined.slice(0, capacity), combined.slice(capacity).filter((value) => value !== ""));
+  renderMidiNoteEditor();
+  buildMidiOutputFromEditor(false);
+}
+
+function splitMidiEditorNote(measureIndex, noteIndex) {
+  const value = midiEditorData[measureIndex]?.lyrics?.[noteIndex] || "";
+  const chars = Array.from(value);
+  if (chars.length < 2) return;
+  const flatIndex = getFlatIndex(measureIndex, noteIndex);
+  const combined = [...flattenMidiEditorData(), ...midiEditorOverflow];
+  combined.splice(flatIndex, 1, chars[0], chars.slice(1).join(""));
+  const capacity = flattenMidiEditorData().length;
+  setMidiEditorFromFlat(combined.slice(0, capacity), combined.slice(capacity).filter((item) => item !== ""));
+  renderMidiNoteEditor();
+  buildMidiOutputFromEditor(false);
+}
+
 function rebuildMidiEditorFromAuto() {
   midiEditorData = getMidiAutoEditorData();
+  midiEditorOverflow = [];
   renderMidiNoteEditor();
 }
 
@@ -316,6 +415,7 @@ function ensureMidiEditorShape() {
   const autoData = getMidiAutoEditorData();
   if (getMidiEditorSignature(autoData) !== getMidiEditorSignature(midiEditorData)) {
     midiEditorData = autoData;
+    midiEditorOverflow = [];
   }
 }
 
@@ -341,26 +441,33 @@ function renderMidiNoteEditor() {
     notes.className = "midi-note-inputs note-edit-table";
     measure.lyrics.forEach((lyric, noteIndex) => {
       const label = document.createElement("label");
-      label.className = "midi-note-cell note-cell";
-      label.innerHTML = `<span>音符${noteIndex + 1}</span><input class="note-input" type="text" value="" data-measure-index="${measureIndex}" data-note-index="${noteIndex}" autocomplete="off" />`;
-      label.querySelector("input").value = lyric;
+      const isSelected = midiSelectedCell.measureIndex === measureIndex && midiSelectedCell.noteIndex === noteIndex;
+      label.className = `midi-note-cell note-cell${isSelected ? " is-selected" : ""}`;
+      label.innerHTML = `<span>音符${noteIndex + 1}</span><input class="note-input" type="text" value="" data-measure-index="${measureIndex}" data-note-index="${noteIndex}" data-old-value="" autocomplete="off" /><div class="note-cell-actions"><button type="button" data-note-action="insert" data-measure-index="${measureIndex}" data-note-index="${noteIndex}">この位置で1音追加</button><button type="button" data-note-action="delete" data-measure-index="${measureIndex}" data-note-index="${noteIndex}">この音を削除して前に詰める</button><button type="button" data-note-action="merge" data-measure-index="${measureIndex}" data-note-index="${noteIndex}">右と結合</button><button type="button" data-note-action="split" data-measure-index="${measureIndex}" data-note-index="${noteIndex}">ここで分割</button></div>`;
+      const input = label.querySelector("input");
+      input.value = lyric;
+      input.dataset.oldValue = lyric;
       notes.appendChild(label);
     });
     card.appendChild(notes);
     editor.appendChild(card);
   });
+  updateMidiOverflowDisplay();
 }
 
 function formatMidiEditorOutput() {
   const sep = $("midiOutputSeparator").value === "space" ? " " : " / ";
-  return midiEditorData.map((item) => `${item.measure}小節目：${item.lyrics.join(sep)}`).join("\n");
+  const lines = midiEditorData.map((item) => `${item.measure}小節目：${item.lyrics.join(sep)}`);
+  if (midiEditorOverflow.length) lines.push(`あふれた歌詞：${midiEditorOverflow.join(sep)}`);
+  return lines.join("\n");
 }
 
-function buildMidiOutputFromEditor() {
+function buildMidiOutputFromEditor(showMessage = true) {
   ensureMidiEditorShape();
   $("midiLyricsOutput").value = formatMidiEditorOutput();
+  updateMidiOverflowDisplay();
   scheduleAutoSave();
-  showToast("編集表からVoiSona出力を作りました");
+  if (showMessage) showToast("編集表からVoiSona出力を作りました");
 }
 
 async function copyMidiEditorContent() {
@@ -381,6 +488,8 @@ function getMidiProjectData() {
     selectedTrack: $("midiTrackSelect")?.value || "",
     allocationOutput: $("midiLyricsOutput")?.value || "",
     editorData: midiEditorData,
+    editorOverflow: midiEditorOverflow,
+    autoShiftMode: Boolean($("midiAutoShiftMode")?.checked),
     state: serializeMidiState(),
   };
 }
@@ -395,9 +504,12 @@ function setMidiProjectData(data) {
   restoreMidiState(data?.state);
   if (data?.selectedTrack !== undefined && document.querySelector(`#midiTrackSelect option[value="${data.selectedTrack}"]`)) $("midiTrackSelect").value = data.selectedTrack;
   midiEditorData = Array.isArray(data?.editorData) ? data.editorData : [];
+  midiEditorOverflow = Array.isArray(data?.editorOverflow) ? data.editorOverflow : [];
+  if ($("midiAutoShiftMode")) $("midiAutoShiftMode").checked = Boolean(data?.autoShiftMode);
   renderMidiAnalysis(); updateMidiLyricsAllocation();
   if (Array.isArray(data?.editorData)) {
     midiEditorData = data.editorData;
+    midiEditorOverflow = Array.isArray(data?.editorOverflow) ? data.editorOverflow : [];
     ensureMidiEditorShape();
     renderMidiNoteEditor();
     if (data?.allocationOutput) $("midiLyricsOutput").value = data.allocationOutput;
@@ -411,6 +523,7 @@ function clearMidiProjectData() {
   if ($("midiLyricsInput")) $("midiLyricsInput").value = "";
   if ($("midiLyricsOutput")) $("midiLyricsOutput").value = "";
   midiEditorData = [];
+  midiEditorOverflow = [];
   populateMidiTrackSelect(); renderMidiAnalysis(); updateMidiLyricsAllocation();
 }
 
@@ -430,10 +543,39 @@ function setupMidiEvents() {
     if (!input) return;
     const measureIndex = Number(input.dataset.measureIndex);
     const noteIndex = Number(input.dataset.noteIndex);
-    if (midiEditorData[measureIndex]?.lyrics) midiEditorData[measureIndex].lyrics[noteIndex] = input.value;
+    midiSelectedCell = { measureIndex, noteIndex };
+    const oldValue = input.dataset.oldValue || "";
+    if ($("midiAutoShiftMode")?.checked) {
+      applyMidiEditorShift(getFlatIndex(measureIndex, noteIndex), input.value, oldValue);
+      renderMidiNoteEditor();
+      buildMidiOutputFromEditor(false);
+    } else if (midiEditorData[measureIndex]?.lyrics) {
+      midiEditorData[measureIndex].lyrics[noteIndex] = input.value;
+      input.dataset.oldValue = input.value;
+      scheduleAutoSave();
+    }
+  });
+  $("midiNoteEditor").addEventListener("focusin", (event) => {
+    const input = event.target.closest("input[data-measure-index][data-note-index]");
+    if (!input) return;
+    midiSelectedCell = { measureIndex: Number(input.dataset.measureIndex), noteIndex: Number(input.dataset.noteIndex) };
+    updateMidiSelectedCellClasses();
+  });
+  $("midiNoteEditor").addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-note-action]");
+    if (!button) return;
+    const measureIndex = Number(button.dataset.measureIndex);
+    const noteIndex = Number(button.dataset.noteIndex);
+    midiSelectedCell = { measureIndex, noteIndex };
+    const action = button.dataset.noteAction;
+    if (action === "insert") insertMidiEditorNoteAfter(measureIndex, noteIndex);
+    if (action === "delete") deleteMidiEditorNote(measureIndex, noteIndex);
+    if (action === "merge") mergeMidiEditorNoteRight(measureIndex, noteIndex);
+    if (action === "split") splitMidiEditorNote(measureIndex, noteIndex);
     scheduleAutoSave();
   });
-  $("midiBuildFromEditorButton").addEventListener("click", buildMidiOutputFromEditor);
+  $("midiAutoShiftMode").addEventListener("change", scheduleAutoSave);
+  $("midiBuildFromEditorButton").addEventListener("click", () => buildMidiOutputFromEditor(true));
   $("midiResetEditorButton").addEventListener("click", () => { rebuildMidiEditorFromAuto(); buildMidiOutputFromEditor(); showToast("編集表を自動分割の内容に戻しました"); });
   $("midiCopyEditorButton").addEventListener("click", copyMidiEditorContent);
 }
