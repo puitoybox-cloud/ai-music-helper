@@ -30,7 +30,15 @@ function showToast(message) {
 function fillSelects() {
   Object.entries(selectOptions).forEach(([id, options]) => {
     const select = $(id);
-    select.innerHTML = options.map((option) => `<option value="${option}">${option}</option>`).join("");
+    if (!select) return;
+
+    const existingOptions = Array.from(select.options).map((option) => option.value);
+    const hasAllOptions = options.every((option) => existingOptions.includes(option));
+    if (!hasAllOptions || select.options.length === 0) {
+      select.replaceChildren(...options.map((option) => new Option(option, option)));
+    }
+
+    if (!select.value) select.selectedIndex = id === "bpm" ? 6 : 0;
   });
 }
 
