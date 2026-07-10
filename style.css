@@ -62,3 +62,8 @@ button.primary, .file-button { background: var(--blue-dark); color: #fff; } butt
 .tokenizer-status.is-ready { color: #276749; background: #f0fff4; border-color: #9ae6b4; }
 .tokenizer-status.is-error { color: #9b2c2c; background: #fff3f3; border-color: #f3b2b2; }
 @media (max-width: 760px) { .voisona-grid, .button-grid { grid-template-columns: 1fr; } }
+.voisona-format-card .helper-text { margin: 0; padding: 12px 14px; border: 1px solid var(--line); border-radius: 16px; background: var(--soft); color: var(--blue-dark); font-weight: 800; line-height: 1.7; }
+.voisona-format-card button, .voisona-format-card .copy-button { min-height: 60px; padding: 16px 20px; }
+#voisonaChatGptPrompt { min-height: 260px; background: #fff; }
+.voisona-format-card .button-grid button:last-child:nth-child(odd) { grid-column: 1 / -1; }
+@media (pointer: coarse) { button, .file-button { min-height: 60px; padding: 16px 20px; } }
