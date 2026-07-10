@@ -82,8 +82,9 @@ button.primary, .file-button { background: var(--blue-dark); color: #fff; } butt
 .midi-note-editor { display: grid; gap: 16px; margin-top: 18px; }
 .editor-heading { display: grid; gap: 14px; }
 .editor-heading h4 { margin: 0 0 8px; color: var(--blue-dark); font-size: 1.25rem; }
-.note-editor-toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0 18px; align-items: stretch; }
-.note-editor-toolbar button { min-height: 44px; padding: 10px 16px; border-radius: 12px; font-size: 15px; flex: 1 1 170px; }
+.note-editor-toolbar { position: sticky; top: 0; z-index: 20; background: rgba(245, 250, 255, 0.96); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); padding: 10px; border: 1px solid #d8e8f7; border-radius: 14px; display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0 18px; align-items: stretch; }
+.note-editor-toolbar-bottom { position: static; margin: 18px 0 0; }
+.note-editor-toolbar button { min-height: 40px; padding: 9px 14px; border-radius: 12px; font-size: 14px; flex: 1 1 160px; }
 .note-editor-toolbar button:disabled { cursor: not-allowed; opacity: .48; background: #eef2f6; color: var(--muted); border-color: var(--line); }
 .midi-note-editor-grid,
 .note-editor-grid { display: grid; gap: 16px; max-width: 100%; overflow: visible; }
@@ -138,8 +139,8 @@ button.primary, .file-button { background: var(--blue-dark); color: #fff; } butt
 
 .midi-auto-shift-option span { display: grid; gap: 4px; line-height: 1.5; }
 .midi-auto-shift-option small { display: block; color: var(--blue-dark); font-weight: 800; text-align: left; line-height: 1.5; }
-#compactEmptyNotesButton { background: #fff8e8; color: #8a5a00; border: 1px solid #f6c36b; }
+.note-editor-toolbar [data-note-toolbar-action="compact"] { background: #fff8e8; color: #8a5a00; border: 1px solid #f6c36b; }
 
-#undoNoteEditButton, #redoNoteEditButton { background: #eef8ff; color: var(--blue-dark); border: 1px solid var(--line); }
-.note-editor-toolbar #undoNoteEditButton:disabled,
-.note-editor-toolbar #redoNoteEditButton:disabled { background: #eef2f6; color: var(--muted); border-color: var(--line); }
+.note-editor-toolbar [data-note-toolbar-action="undo"], .note-editor-toolbar [data-note-toolbar-action="redo"] { background: #eef8ff; color: var(--blue-dark); border: 1px solid var(--line); }
+.note-editor-toolbar [data-note-toolbar-action="undo"]:disabled,
+.note-editor-toolbar [data-note-toolbar-action="redo"]:disabled { background: #eef2f6; color: var(--muted); border-color: var(--line); }
