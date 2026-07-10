@@ -19,6 +19,7 @@ const voisonaBrackets = /[「」『』（）]/g;
 const voisonaPunctuation = /[、。]/g;
 const voisonaSymbols = /[!！?？…・♪♡☆★\-—〜~]/g;
 let midiState = null;
+let midiEditorData = [];
 
 class MidiReader {
   constructor(buffer) { this.view = new DataView(buffer); this.pos = 0; }
@@ -270,7 +271,7 @@ function setupVoisonaEvents() {
   ["voisonaKanjiLyrics", "voisonaHiraganaLyrics", "voisonaChatGptPrompt", "voisonaOutputFormat", "voisonaNewlineMode", "voisonaCleanupOnConvert"].forEach((id) => $(id).addEventListener("input", () => { updateVoisonaOutput(); scheduleAutoSave(); }));
 }
 
-function updateMidiLyricsAllocation() {
+function updateMidiLyricsAllocation(resetEditor = true) {
   const units = splitJapaneseLyrics($("midiLyricsInput")?.value || "");
   $("midiLyricsSyllableCount").textContent = `${units.length}音`;
   const output = $("midiLyricsOutput"), warning = $("midiWarning");
@@ -287,6 +288,87 @@ function updateMidiLyricsAllocation() {
   }
   warning.hidden = warnings.length === 0;
   warning.innerHTML = warnings.join("<br>");
+  if (resetEditor) rebuildMidiEditorFromAuto();
+  else { ensureMidiEditorShape(); renderMidiNoteEditor(); }
+}
+
+function getMidiAutoEditorData() {
+  if (!midiState) return [];
+  const units = splitJapaneseLyrics($("midiLyricsInput")?.value || "");
+  const counts = getTrackMeasureCounts(midiState.parsed, getSelectedMidiTrackIndex());
+  let cursor = 0;
+  return counts.map((item) => {
+    const lyrics = Array.from({ length: item.count }, () => units[cursor++] || "");
+    return { measure: item.measure, lyrics };
+  });
+}
+
+function getMidiEditorSignature(data = midiEditorData) {
+  return data.map((measure) => `${measure.measure}:${measure.lyrics.length}`).join("|");
+}
+
+function rebuildMidiEditorFromAuto() {
+  midiEditorData = getMidiAutoEditorData();
+  renderMidiNoteEditor();
+}
+
+function ensureMidiEditorShape() {
+  const autoData = getMidiAutoEditorData();
+  if (getMidiEditorSignature(autoData) !== getMidiEditorSignature(midiEditorData)) {
+    midiEditorData = autoData;
+  }
+}
+
+function renderMidiNoteEditor() {
+  const editor = $("midiNoteEditor");
+  if (!editor) return;
+  editor.innerHTML = "";
+  if (!midiState) {
+    editor.innerHTML = `<p class="empty-editor-message">MIDIを読み込むと、音符ごとの編集表が表示されます。</p>`;
+    return;
+  }
+  if (!midiEditorData.length) {
+    editor.innerHTML = `<p class="empty-editor-message">選択中のトラックに音符がありません。</p>`;
+    return;
+  }
+  midiEditorData.forEach((measure, measureIndex) => {
+    const card = document.createElement("section");
+    card.className = "midi-measure-card";
+    const title = document.createElement("h5");
+    title.textContent = `小節 ${measure.measure}`;
+    card.appendChild(title);
+    const notes = document.createElement("div");
+    notes.className = "midi-note-inputs";
+    measure.lyrics.forEach((lyric, noteIndex) => {
+      const label = document.createElement("label");
+      label.className = "midi-note-cell";
+      label.innerHTML = `<span>音符${noteIndex + 1}</span><input type="text" value="" data-measure-index="${measureIndex}" data-note-index="${noteIndex}" autocomplete="off" />`;
+      label.querySelector("input").value = lyric;
+      notes.appendChild(label);
+    });
+    card.appendChild(notes);
+    editor.appendChild(card);
+  });
+}
+
+function formatMidiEditorOutput() {
+  const sep = $("midiOutputSeparator").value === "space" ? " " : " / ";
+  return midiEditorData.map((item) => `${item.measure}小節目：${item.lyrics.join(sep)}`).join("\n");
+}
+
+function buildMidiOutputFromEditor() {
+  ensureMidiEditorShape();
+  $("midiLyricsOutput").value = formatMidiEditorOutput();
+  scheduleAutoSave();
+  showToast("編集表からVoiSona出力を作りました");
+}
+
+async function copyMidiEditorContent() {
+  ensureMidiEditorShape();
+  const text = formatMidiEditorOutput();
+  if (!text) { showToast("コピーする編集表がありません"); return; }
+  try { await navigator.clipboard.writeText(text); showToast("編集表の内容をコピーしました"); }
+  catch { $("midiLyricsOutput").value = text; $("midiLyricsOutput").select(); document.execCommand("copy"); showToast("編集表の内容をコピーしました"); }
 }
 
 function getMidiProjectData() {
@@ -298,6 +380,7 @@ function getMidiProjectData() {
     smallTsuCount: Boolean($("midiSmallTsuMode")?.checked),
     selectedTrack: $("midiTrackSelect")?.value || "",
     allocationOutput: $("midiLyricsOutput")?.value || "",
+    editorData: midiEditorData,
     state: serializeMidiState(),
   };
 }
@@ -311,7 +394,14 @@ function setMidiProjectData(data) {
   $("midiSmallTsuMode").checked = data?.smallTsuCount !== false;
   restoreMidiState(data?.state);
   if (data?.selectedTrack !== undefined && document.querySelector(`#midiTrackSelect option[value="${data.selectedTrack}"]`)) $("midiTrackSelect").value = data.selectedTrack;
+  midiEditorData = Array.isArray(data?.editorData) ? data.editorData : [];
   renderMidiAnalysis(); updateMidiLyricsAllocation();
+  if (Array.isArray(data?.editorData)) {
+    midiEditorData = data.editorData;
+    ensureMidiEditorShape();
+    renderMidiNoteEditor();
+    if (data?.allocationOutput) $("midiLyricsOutput").value = data.allocationOutput;
+  }
 }
 
 function clearMidiProjectData() {
@@ -320,6 +410,7 @@ function clearMidiProjectData() {
   if ($("midiFileName")) $("midiFileName").textContent = "未選択";
   if ($("midiLyricsInput")) $("midiLyricsInput").value = "";
   if ($("midiLyricsOutput")) $("midiLyricsOutput").value = "";
+  midiEditorData = [];
   populateMidiTrackSelect(); renderMidiAnalysis(); updateMidiLyricsAllocation();
 }
 
@@ -331,8 +422,20 @@ function setupMidiEvents() {
     reader.onload = () => { try { midiState = { fileName: file.name, parsed: parseMidiFile(reader.result) }; $("midiFileName").textContent = file.name; populateMidiTrackSelect(); renderMidiAnalysis(); updateMidiLyricsAllocation(); saveProject(false); showToast("MIDIを解析しました"); } catch (e) { console.error(e); showToast("MIDIを解析できませんでした"); } };
     reader.readAsArrayBuffer(file);
   });
-  ["midiTrackSelect", "midiLyricsInput", "midiOutputSeparator", "midiCombineSmallYoon", "midiLongVowelMode", "midiSmallTsuMode"].forEach((id) => $(id).addEventListener("input", () => { renderMidiAnalysis(); updateMidiLyricsAllocation(); scheduleAutoSave(); }));
+  ["midiTrackSelect", "midiLyricsInput", "midiCombineSmallYoon", "midiLongVowelMode", "midiSmallTsuMode"].forEach((id) => $(id).addEventListener("input", () => { renderMidiAnalysis(); updateMidiLyricsAllocation(true); scheduleAutoSave(); }));
+  $("midiOutputSeparator").addEventListener("input", () => { renderMidiAnalysis(); updateMidiLyricsAllocation(false); $("midiLyricsOutput").value = formatMidiEditorOutput(); scheduleAutoSave(); });
   $("midiTrackSelect").addEventListener("change", () => { renderMidiAnalysis(); updateMidiLyricsAllocation(); scheduleAutoSave(); });
+  $("midiNoteEditor").addEventListener("input", (event) => {
+    const input = event.target.closest("input[data-measure-index][data-note-index]");
+    if (!input) return;
+    const measureIndex = Number(input.dataset.measureIndex);
+    const noteIndex = Number(input.dataset.noteIndex);
+    if (midiEditorData[measureIndex]?.lyrics) midiEditorData[measureIndex].lyrics[noteIndex] = input.value;
+    scheduleAutoSave();
+  });
+  $("midiBuildFromEditorButton").addEventListener("click", buildMidiOutputFromEditor);
+  $("midiResetEditorButton").addEventListener("click", () => { rebuildMidiEditorFromAuto(); buildMidiOutputFromEditor(); showToast("編集表を自動分割の内容に戻しました"); });
+  $("midiCopyEditorButton").addEventListener("click", copyMidiEditorContent);
 }
 
 const $ = (id) => document.getElementById(id);
