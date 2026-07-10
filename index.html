@@ -176,8 +176,8 @@
             <button type="button" id="voisonaNormalizeLinesButton">改行を整理</button>
             <button type="button" id="voisonaNormalizeSpacesButton">空白を整理</button>
           </div>
-          <label>出力形式<select id="voisonaOutputFormat"><option value="slash">スラッシュ区切り（み / ら / い）</option><option value="space">スペース区切り（み ら い）</option></select></label>
-          <label>VoiSona用の区切り済み歌詞<textarea id="voisonaSeparatedOutput" rows="7" readonly placeholder="ひらがな歌詞を整えると自動で表示されます"></textarea></label>
+          <p class="voisona-output-note">出力は1音ごとに半角スペースで区切ります（例：み ら い）。</p>
+          <label>VoiSona用のスペース区切り歌詞<textarea id="voisonaSeparatedOutput" rows="7" readonly placeholder="ひらがな歌詞を整えると半角スペース区切りで自動表示されます"></textarea></label>
           <div class="button-grid">
             <button type="button" id="voisonaCopyOutputButton" class="copy-button" data-copy-target="voisonaSeparatedOutput">出力をコピー</button>
             <button type="button" id="voisonaSendToMidiButton" class="primary">MIDI歌詞割り当て補助へ送る</button>
@@ -223,19 +223,19 @@
           <div class="midi-voisona-output" aria-labelledby="midi-voisona-output-title">
             <div class="editor-heading">
               <div>
-                <h4 id="midi-voisona-output-title">VoiSonaコピー用</h4>
+                <h4 id="midi-voisona-output-title">VoiSona貼り付け用</h4>
                 <p class="helper-text">音符ごとの編集表の内容だけを使い、小節番号・「小節目」・「：」・「/」を入れず、1音符ごとの歌詞を半角スペース区切りで出力します。空欄は飛ばします。</p>
               </div>
-              <button type="button" id="midiBuildVoisonaPasteButton" class="primary">VoiSonaコピー用出力を作る</button>
+              <button type="button" id="midiBuildVoisonaPasteButton" class="primary">VoiSona貼り付け用出力を作る</button>
             </div>
             <div class="midi-voisona-output-grid">
               <div>
-                <label>VoiSonaコピー用・改行あり<textarea id="midiVoisonaPasteOutput" rows="7" readonly placeholder="編集表の歌詞だけを小節ごとに半角スペース区切りで表示します"></textarea></label>
+                <label>VoiSona貼り付け用・改行あり<textarea id="midiVoisonaPasteOutput" rows="7" readonly placeholder="編集表の歌詞だけを小節ごとに半角スペース区切りで表示します"></textarea></label>
                 <button type="button" class="copy-button" data-copy-target="midiVoisonaPasteOutput" data-copy-status="midiVoisonaPasteStatus">コピー</button>
                 <p id="midiVoisonaPasteStatus" class="copy-status" aria-live="polite"></p>
               </div>
               <div>
-                <label>VoiSonaコピー用・1行<textarea id="midiVoisonaPasteOneLineOutput" rows="7" readonly placeholder="編集表の歌詞だけを1行の半角スペース区切りで表示します"></textarea></label>
+                <label>VoiSona貼り付け用・1行<textarea id="midiVoisonaPasteOneLineOutput" rows="7" readonly placeholder="編集表の歌詞だけを1行の半角スペース区切りで表示します"></textarea></label>
                 <button type="button" class="copy-button" data-copy-target="midiVoisonaPasteOneLineOutput" data-copy-status="midiVoisonaPasteOneLineStatus">コピー</button>
                 <p id="midiVoisonaPasteOneLineStatus" class="copy-status" aria-live="polite"></p>
               </div>
