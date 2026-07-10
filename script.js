@@ -24,6 +24,7 @@ let midiEditorOverflow = [];
 let midiSelectedCell = { measureIndex: 0, noteIndex: 0 };
 let noteEditHistory = [];
 let noteEditHistoryIndex = -1;
+let isComposingNoteText = false;
 const NOTE_EDIT_HISTORY_LIMIT = 50;
 
 class MidiReader {
@@ -338,10 +339,8 @@ function areNoteEditHistoryStatesEqual(a, b) {
 }
 
 function updateNoteEditHistoryButtons() {
-  const undoButton = $("undoNoteEditButton");
-  const redoButton = $("redoNoteEditButton");
-  if (undoButton) undoButton.disabled = noteEditHistoryIndex <= 0;
-  if (redoButton) redoButton.disabled = noteEditHistoryIndex < 0 || noteEditHistoryIndex >= noteEditHistory.length - 1;
+  document.querySelectorAll('[data-note-toolbar-action="undo"]').forEach((button) => { button.disabled = noteEditHistoryIndex <= 0; });
+  document.querySelectorAll('[data-note-toolbar-action="redo"]').forEach((button) => { button.disabled = noteEditHistoryIndex < 0 || noteEditHistoryIndex >= noteEditHistory.length - 1; });
 }
 
 function pushNoteEditHistory() {
@@ -516,7 +515,54 @@ function ensureMidiEditorShape() {
   }
 }
 
-function renderMidiNoteEditor() {
+function getMidiEditorInput(measureIndex, noteIndex) {
+  return document.querySelector(`#midiNoteEditor input[data-measure-index="${measureIndex}"][data-note-index="${noteIndex}"]`);
+}
+
+function restoreMidiEditorFocus(focusTarget = midiSelectedCell) {
+  if (!focusTarget) return;
+  requestAnimationFrame(() => {
+    const input = getMidiEditorInput(focusTarget.measureIndex, focusTarget.noteIndex);
+    if (!input) return;
+    input.focus({ preventScroll: true });
+    const length = input.value.length;
+    input.setSelectionRange?.(length, length);
+  });
+}
+
+function updateNoteValueOnly(input) {
+  const measureIndex = Number(input.dataset.measureIndex);
+  const noteIndex = Number(input.dataset.noteIndex);
+  midiSelectedCell = { measureIndex, noteIndex };
+  if (midiEditorData[measureIndex]?.lyrics) {
+    midiEditorData[measureIndex].lyrics[noteIndex] = input.value;
+  }
+  updateMidiSelectedCellClasses();
+  updateMidiOverflowDisplay();
+  scheduleAutoSave();
+}
+
+function commitNoteInput(input, { renderAfterShift = false } = {}) {
+  const measureIndex = Number(input.dataset.measureIndex);
+  const noteIndex = Number(input.dataset.noteIndex);
+  const oldValue = input.dataset.oldValue || "";
+  const newValue = input.value;
+  midiSelectedCell = { measureIndex, noteIndex };
+  if (oldValue === newValue) return;
+  if ($("midiAutoShiftMode")?.checked) {
+    applyMidiEditorShift(getFlatIndex(measureIndex, noteIndex), newValue, oldValue);
+    buildMidiOutputFromEditor(false);
+    pushNoteEditHistory();
+    renderMidiNoteEditor({ restoreFocus: renderAfterShift, focusTarget: midiSelectedCell });
+  } else {
+    updateNoteValueOnly(input);
+    input.dataset.oldValue = newValue;
+    buildMidiOutputFromEditor(false);
+    pushNoteEditHistory();
+  }
+}
+
+function renderMidiNoteEditor(options = {}) {
   const editor = $("midiNoteEditor");
   if (!editor) return;
   editor.innerHTML = "";
@@ -553,6 +599,7 @@ function renderMidiNoteEditor() {
   });
   updateMidiOverflowDisplay();
   updateNoteEditHistoryButtons();
+  if (options.restoreFocus) restoreMidiEditorFocus(options.focusTarget);
 }
 
 function formatMidiEditorOutput() {
@@ -640,24 +687,30 @@ function setupMidiEvents() {
   ["midiTrackSelect", "midiLyricsInput", "midiCombineSmallYoon", "midiLongVowelMode", "midiSmallTsuMode"].forEach((id) => $(id).addEventListener("input", () => { renderMidiAnalysis(); updateMidiLyricsAllocation(true); scheduleAutoSave(); }));
   $("midiOutputSeparator").addEventListener("input", () => { renderMidiAnalysis(); updateMidiLyricsAllocation(false); $("midiLyricsOutput").value = formatMidiEditorOutput(); scheduleAutoSave(); });
   $("midiTrackSelect").addEventListener("change", () => { renderMidiAnalysis(); updateMidiLyricsAllocation(); scheduleAutoSave(); });
+  $("midiNoteEditor").addEventListener("compositionstart", (event) => {
+    if (event.target.closest("input[data-measure-index][data-note-index]")) isComposingNoteText = true;
+  });
+  $("midiNoteEditor").addEventListener("compositionend", (event) => {
+    const input = event.target.closest("input[data-measure-index][data-note-index]");
+    if (!input) return;
+    isComposingNoteText = false;
+    updateNoteValueOnly(input);
+  });
   $("midiNoteEditor").addEventListener("input", (event) => {
     const input = event.target.closest("input[data-measure-index][data-note-index]");
     if (!input) return;
-    const measureIndex = Number(input.dataset.measureIndex);
-    const noteIndex = Number(input.dataset.noteIndex);
-    midiSelectedCell = { measureIndex, noteIndex };
-    const oldValue = input.dataset.oldValue || "";
-    if ($("midiAutoShiftMode")?.checked) {
-      applyMidiEditorShift(getFlatIndex(measureIndex, noteIndex), input.value, oldValue);
-      renderMidiNoteEditor();
-      buildMidiOutputFromEditor(false);
-      pushNoteEditHistory();
-    } else if (midiEditorData[measureIndex]?.lyrics) {
-      midiEditorData[measureIndex].lyrics[noteIndex] = input.value;
-      input.dataset.oldValue = input.value;
-      pushNoteEditHistory();
-      scheduleAutoSave();
-    }
+    updateNoteValueOnly(input);
+  });
+  $("midiNoteEditor").addEventListener("keydown", (event) => {
+    const input = event.target.closest("input[data-measure-index][data-note-index]");
+    if (!input || event.key !== "Enter" || isComposingNoteText) return;
+    event.preventDefault();
+    commitNoteInput(input, { renderAfterShift: true });
+  });
+  $("midiNoteEditor").addEventListener("focusout", (event) => {
+    const input = event.target.closest("input[data-measure-index][data-note-index]");
+    if (!input || isComposingNoteText) return;
+    commitNoteInput(input);
   });
   $("midiNoteEditor").addEventListener("focusin", (event) => {
     const input = event.target.closest("input[data-measure-index][data-note-index]");
@@ -679,12 +732,19 @@ function setupMidiEvents() {
     scheduleAutoSave();
   });
   $("midiAutoShiftMode").addEventListener("change", scheduleAutoSave);
-  $("undoNoteEditButton").addEventListener("click", undoNoteEdit);
-  $("redoNoteEditButton").addEventListener("click", redoNoteEdit);
-  $("compactEmptyNotesButton").addEventListener("click", () => compactMidiEditorBlanks(true));
-  $("buildFromNoteEditorButton").addEventListener("click", () => buildMidiOutputFromEditor(true));
-  $("resetNoteEditorButton").addEventListener("click", () => { rebuildMidiEditorFromAuto(false); buildMidiOutputFromEditor(); showToast("編集表を自動分割の内容に戻しました"); });
-  $("copyNoteEditorButton").addEventListener("click", copyMidiEditorContent);
+  document.querySelectorAll(".note-editor-toolbar").forEach((toolbar) => {
+    toolbar.addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-note-toolbar-action]");
+      if (!button) return;
+      const action = button.dataset.noteToolbarAction;
+      if (action === "undo") undoNoteEdit();
+      if (action === "redo") redoNoteEdit();
+      if (action === "compact") compactMidiEditorBlanks(true);
+      if (action === "build") buildMidiOutputFromEditor(true);
+      if (action === "reset") { rebuildMidiEditorFromAuto(false); buildMidiOutputFromEditor(); showToast("編集表を自動分割の内容に戻しました"); }
+      if (action === "copy") copyMidiEditorContent();
+    });
+  });
 }
 
 const $ = (id) => document.getElementById(id);

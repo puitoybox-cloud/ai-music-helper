@@ -226,18 +226,26 @@
                 <h4 id="midi-note-editor-title">音符ごとの編集表</h4>
                 <p class="helper-text">自動分割した歌詞を、1音符ごとに手で直せます。1つの欄に「きゃ」「だい」「つた」など複数文字を入れたり、空欄にしたりできます。</p>
               </div>
-              <div class="note-editor-toolbar" role="toolbar" aria-label="音符ごとの編集表の操作">
-                <button type="button" id="undoNoteEditButton" disabled>← 一個戻る</button>
-                <button type="button" id="redoNoteEditButton" disabled>一個進む →</button>
-                <button type="button" id="compactEmptyNotesButton">空欄を詰める</button>
-                <button type="button" id="buildFromNoteEditorButton" class="primary">編集表からVoiSona出力を作る</button>
-                <button type="button" id="resetNoteEditorButton">編集表をリセットする</button>
-                <button type="button" id="copyNoteEditorButton">編集表の内容をコピーする</button>
-              </div>
               <label class="inline-option midi-auto-shift-option"><input id="midiAutoShiftMode" type="checkbox" /> <span><strong>自動前詰め編集モード</strong><small>ON：空欄を作ると編集表全体で後ろの歌詞を前に詰めます。追加時は後ろへ送り、あふれた歌詞に表示します。</small></span></label>
+            </div>
+            <div class="note-editor-toolbar" role="toolbar" aria-label="音符ごとの編集表の操作">
+              <button type="button" data-note-toolbar-action="undo" disabled>← 一個戻る</button>
+              <button type="button" data-note-toolbar-action="redo" disabled>一個進む →</button>
+              <button type="button" data-note-toolbar-action="compact">空欄を詰める</button>
+              <button type="button" data-note-toolbar-action="build" class="primary">編集表からVoiSona出力を作る</button>
+              <button type="button" data-note-toolbar-action="reset">編集表をリセットする</button>
+              <button type="button" data-note-toolbar-action="copy">編集表の内容をコピーする</button>
             </div>
             <div id="midiOverflowLyrics" class="midi-overflow-lyrics" hidden></div>
             <div id="midiNoteEditor" class="midi-note-editor-grid" aria-live="polite"></div>
+            <div class="note-editor-toolbar note-editor-toolbar-bottom" role="toolbar" aria-label="音符ごとの編集表の操作（下部）">
+              <button type="button" data-note-toolbar-action="undo" disabled>← 一個戻る</button>
+              <button type="button" data-note-toolbar-action="redo" disabled>一個進む →</button>
+              <button type="button" data-note-toolbar-action="compact">空欄を詰める</button>
+              <button type="button" data-note-toolbar-action="build" class="primary">編集表からVoiSona出力を作る</button>
+              <button type="button" data-note-toolbar-action="reset">編集表をリセットする</button>
+              <button type="button" data-note-toolbar-action="copy">編集表の内容をコピーする</button>
+            </div>
           </div>
         </div>
       </div>
