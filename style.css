@@ -196,10 +196,10 @@ button.primary, .file-button { background: var(--blue-dark); color: #fff; } butt
 .note-editor-toolbar [data-note-toolbar-action="redo"]:disabled { background: #eef2f6; color: var(--muted); border-color: var(--line); }
 
 .midi-playback-panel { background: #f4fbff; }
-.midi-playback-controls { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; align-items: end; }
+.midi-playback-controls { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; align-items: end; }
 .midi-playback-controls label { margin: 0; }
 .midi-current-measure { min-height: 56px; display: flex; align-items: center; justify-content: center; margin: 0; padding: 12px 14px; border: 1px solid var(--line); border-radius: 18px; background: #fff; color: var(--muted); font-weight: 900; text-align: center; }
-.midi-current-measure strong { color: var(--blue-dark); margin-left: 4px; }
+.midi-playback-error { min-height: 1.5em; margin: 12px 0 0; color: #b42318; font-weight: 800; }
 .midi-measure-card-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
 .midi-measure-card-header h5 { margin: 0; }
 .midi-measure-play-button { min-height: 42px; border-radius: 14px; padding: 9px 14px; background: var(--soft); color: var(--blue-dark); border: 1px solid var(--line); }

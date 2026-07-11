@@ -218,11 +218,13 @@
           <h3 id="midi-playback-title">MIDI再生</h3>
           <p class="helper-text">読み込んだ歌メロMIDIを、ブラウザ内蔵のWeb Audio APIによるシンプルなシンセ音で確認できます。自動再生はせず、ボタン操作時だけ音を鳴らします。</p>
           <div class="midi-playback-controls">
-            <button type="button" id="midiPlayAllButton" class="primary">全体再生</button>
-            <button type="button" id="midiStopButton">停止</button>
+            <button type="button" id="playMidiButton" class="primary" disabled>全体再生</button>
+            <button type="button" id="stopMidiButton">停止</button>
+            <button type="button" id="testToneButton">音声テスト</button>
             <label>再生速度<select id="midiPlaybackSpeed"><option value="0.5">0.5倍</option><option value="0.75">0.75倍</option><option value="1" selected>1倍</option><option value="1.25">1.25倍</option></select></label>
-            <p class="midi-current-measure">現在再生中：<strong id="midiCurrentMeasure">停止中</strong></p>
+            <p id="midiPlaybackStatus" class="midi-current-measure">現在再生中：停止中</p>
           </div>
+          <p id="midiPlaybackError" class="midi-playback-error" role="alert"></p>
         </div>
 
         <div class="sub-card full-span">
