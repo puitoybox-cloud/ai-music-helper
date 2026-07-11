@@ -785,53 +785,84 @@ function getElementViewportHeight(element) {
   return rect ? Math.max(0, rect.height) : 0;
 }
 
-function getMidiEditorScrollBounds() {
-  const viewportHeight = window.visualViewport?.height || window.innerHeight || document.documentElement.clientHeight;
-  const visualViewportTop = window.visualViewport?.offsetTop || 0;
-  const stickyToolbarHeight = getElementViewportHeight(document.querySelector(".note-editor-toolbar:not(.note-editor-toolbar-bottom)"));
-  const floatingToolbar = document.querySelector(".note-editor-floating-toolbar:not([hidden])");
-  const floatingToolbarHeight = getElementViewportHeight(floatingToolbar);
-  const topInset = Math.max(16, visualViewportTop + stickyToolbarHeight + 16);
-  const bottomInset = floatingToolbarHeight ? floatingToolbarHeight + 32 : 24;
-  const safeTop = Math.max(viewportHeight * 0.2, topInset);
-  const safeBottom = Math.min(viewportHeight * 0.55, viewportHeight - bottomInset);
-  const adjustedSafeBottom = Math.max(safeBottom, safeTop + 72);
-  return {
-    viewportHeight,
-    safeTop,
-    safeBottom: adjustedSafeBottom,
-    desiredTop: Math.min(Math.max(viewportHeight * 0.3, safeTop + 12), adjustedSafeBottom - 48),
-  };
+function findScrollableParent(element) {
+  let parent = element?.parentElement;
+
+  while (parent) {
+    const style = window.getComputedStyle(parent);
+    const overflowY = style.overflowY;
+    const canScroll =
+      (overflowY === "auto" || overflowY === "scroll") &&
+      parent.scrollHeight > parent.clientHeight;
+
+    if (canScroll) return parent;
+    parent = parent.parentElement;
+  }
+
+  return document.scrollingElement || document.documentElement;
 }
 
-function scrollMidiEditorNoteIntoView(inputOrCell, { mode = "smart" } = {}) {
+function getNoteEditorFloatingToolbarHeight() {
+  const floatingToolbar = document.querySelector(".note-editor-floating-toolbar");
+  return floatingToolbar?.getBoundingClientRect().height || 100;
+}
+
+function getNoteEditorDesiredTop() {
+  const isAppleTouchDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+  if (isAppleTouchDevice && isSafari) return 180;
+  if (isSafari) return 120;
+  return 160;
+}
+
+function scrollNoteToUpperPosition(element) {
+  if (!element) return;
+
+  const target = element.closest?.(".midi-note-cell") || element;
+  const scrollParent = findScrollableParent(target);
+  const desiredTop = getNoteEditorDesiredTop();
+  const toolbarHeight = getNoteEditorFloatingToolbarHeight();
+  const viewportHeight = window.visualViewport?.height || window.innerHeight || document.documentElement.clientHeight;
+  const visualViewportTop = window.visualViewport?.offsetTop || 0;
+  const safeViewportBottom = viewportHeight + visualViewportTop - toolbarHeight - 40;
+
+  if (
+    scrollParent === document.scrollingElement ||
+    scrollParent === document.documentElement ||
+    scrollParent === document.body
+  ) {
+    const rect = target.getBoundingClientRect();
+    const top = window.scrollY + rect.top + visualViewportTop - desiredTop;
+
+    window.scrollTo({
+      top: Math.max(0, top),
+      behavior: "smooth",
+    });
+
+    return;
+  }
+
+  const elementRect = target.getBoundingClientRect();
+  const parentRect = scrollParent.getBoundingClientRect();
+  const safeParentBottom = Math.min(parentRect.bottom, safeViewportBottom);
+  const parentVisibleHeight = Math.max(0, safeParentBottom - parentRect.top);
+  const effectiveDesiredTop = Math.min(desiredTop, Math.max(24, parentVisibleHeight - elementRect.height - 24));
+  const currentRelativeTop = elementRect.top - parentRect.top + scrollParent.scrollTop;
+
+  scrollParent.scrollTo({
+    top: Math.max(0, currentRelativeTop - effectiveDesiredTop),
+    behavior: "smooth",
+  });
+}
+
+function scrollMidiEditorNoteIntoView(inputOrCell) {
   const element = inputOrCell?.closest?.(".midi-note-cell") || inputOrCell;
   if (!element) return;
-  const runScroll = () => {
-    const rect = element.getBoundingClientRect();
-    const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
-    const { viewportHeight, safeTop, safeBottom, desiredTop } = getMidiEditorScrollBounds();
-    const edgeX = viewportWidth * 0.18;
-    const needsHorizontalHelp = rect.left < edgeX || rect.right > viewportWidth - edgeX;
-    const needsVerticalHelp = mode === "center" || rect.top < safeTop || rect.bottom > safeBottom;
-
-    if (needsHorizontalHelp) {
-      try {
-        element.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
-      } catch {
-        element.scrollIntoView(false);
-      }
-    }
-
-    if (needsVerticalHelp) {
-      const maxStep = Math.max(120, viewportHeight * 0.7);
-      const offset = Math.max(-maxStep, Math.min(maxStep, rect.top - desiredTop));
-      if (Math.abs(offset) > 4) {
-        window.scrollBy({ top: offset, behavior: "smooth" });
-      }
-    }
-  };
-  requestAnimationFrame(runScroll);
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      scrollNoteToUpperPosition(element);
+    });
+  });
 }
 
 function getMidiEditorCell(measureIndex, noteIndex) {
