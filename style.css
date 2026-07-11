@@ -144,6 +144,11 @@ button.primary, .file-button { background: var(--blue-dark); color: #fff; } butt
 .midi-note-cell span { color: var(--muted); }
 .midi-note-cell input,
 .note-input { min-width: 104px; max-width: 220px; min-height: 44px; padding: 12px 14px; border-radius: 16px; font-size: 18px; text-align: center; background: #fbfdff; ime-mode: active; -webkit-user-select: text; user-select: text; }
+.note-input:focus {
+  outline: 3px solid #3182ce;
+  background: #eef7ff;
+  box-shadow: 0 0 0 5px rgba(49, 130, 206, 0.15);
+}
 .empty-editor-message { margin: 0; border: 1px dashed var(--line); border-radius: 16px; padding: 16px; color: var(--muted); font-weight: 800; background: #fff; }
 @media (max-width: 760px) { .midi-card-grid { grid-template-columns: 1fr; } .sub-card { padding: 16px; } .inline-option { align-items: flex-start; } }
 @media (max-width: 760px) { .note-editor-toolbar button, .note-editor-floating-toolbar button { flex-basis: 100%; } .midi-note-cell, .note-cell { flex-basis: min(48%, 180px); max-width: 180px; } }
