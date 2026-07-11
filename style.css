@@ -175,7 +175,9 @@ button.primary, .file-button { background: var(--blue-dark); color: #fff; } butt
 #midiVoisonaPasteOutput, #midiVoisonaPasteOneLineOutput { font-size: 1.08rem; background: #fff; }
 @media (max-width: 760px) { .midi-voisona-output-grid { grid-template-columns: 1fr; } .midi-voisona-output .editor-heading > button { width: 100%; min-width: 0; } }
 
-.midi-auto-shift-option { background: #eef8ff; color: var(--blue-dark); }
+.note-editor-options { display: grid; gap: 10px; min-width: min(100%, 360px); }
+.midi-auto-shift-option,
+.midi-arrow-preview-option { background: #eef8ff; color: var(--blue-dark); }
 .midi-overflow-lyrics { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; border: 1px solid #f6c36b; background: #fff8e8; color: #8a5a00; border-radius: 16px; padding: 12px 14px; font-weight: 900; line-height: 1.7; }
 .midi-overflow-lyrics[hidden] { display: none; }
 .midi-note-cell { position: relative; padding: 8px; border: 1px solid transparent; border-radius: 16px; }
@@ -187,8 +189,10 @@ button.primary, .file-button { background: var(--blue-dark); color: #fff; } butt
 @media (pointer: coarse) { .note-cell-actions button { min-height: 44px; font-size: .82rem; } }
 @media (max-width: 760px) { .midi-note-cell, .note-cell { flex-basis: min(48%, 180px); max-width: 180px; } .note-cell-actions button { font-size: .76rem; } }
 
-.midi-auto-shift-option span { display: grid; gap: 4px; line-height: 1.5; }
-.midi-auto-shift-option small { display: block; color: var(--blue-dark); font-weight: 800; text-align: left; line-height: 1.5; }
+.midi-auto-shift-option span,
+.midi-arrow-preview-option span { display: grid; gap: 4px; line-height: 1.5; }
+.midi-auto-shift-option small,
+.midi-arrow-preview-option small { display: block; color: var(--blue-dark); font-weight: 800; text-align: left; line-height: 1.5; }
 .note-editor-toolbar [data-note-toolbar-action="compact"] { background: #fff8e8; color: #8a5a00; border: 1px solid #f6c36b; }
 
 .note-editor-toolbar [data-note-toolbar-action="undo"], .note-editor-toolbar [data-note-toolbar-action="redo"] { background: #eef8ff; color: var(--blue-dark); border: 1px solid var(--line); }
