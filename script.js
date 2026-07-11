@@ -780,21 +780,54 @@ function applyMidiEditorShift(flatIndex, newValue, oldValue = "") {
   fillMidiEditorCapacity(combined, capacity);
 }
 
+function getElementViewportHeight(element) {
+  const rect = element?.getBoundingClientRect?.();
+  return rect ? Math.max(0, rect.height) : 0;
+}
+
+function getMidiEditorScrollBounds() {
+  const viewportHeight = window.visualViewport?.height || window.innerHeight || document.documentElement.clientHeight;
+  const visualViewportTop = window.visualViewport?.offsetTop || 0;
+  const stickyToolbarHeight = getElementViewportHeight(document.querySelector(".note-editor-toolbar:not(.note-editor-toolbar-bottom)"));
+  const floatingToolbar = document.querySelector(".note-editor-floating-toolbar:not([hidden])");
+  const floatingToolbarHeight = getElementViewportHeight(floatingToolbar);
+  const topInset = Math.max(16, visualViewportTop + stickyToolbarHeight + 16);
+  const bottomInset = floatingToolbarHeight ? floatingToolbarHeight + 32 : 24;
+  const safeTop = Math.max(viewportHeight * 0.2, topInset);
+  const safeBottom = Math.min(viewportHeight * 0.55, viewportHeight - bottomInset);
+  const adjustedSafeBottom = Math.max(safeBottom, safeTop + 72);
+  return {
+    viewportHeight,
+    safeTop,
+    safeBottom: adjustedSafeBottom,
+    desiredTop: Math.min(Math.max(viewportHeight * 0.3, safeTop + 12), adjustedSafeBottom - 48),
+  };
+}
+
 function scrollMidiEditorNoteIntoView(inputOrCell, { mode = "smart" } = {}) {
   const element = inputOrCell?.closest?.(".midi-note-cell") || inputOrCell;
   if (!element) return;
   const runScroll = () => {
     const rect = element.getBoundingClientRect();
     const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
-    const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
-    const edgeX = viewportWidth * 0.25;
-    const edgeY = viewportHeight * 0.25;
-    const isNearEdge = rect.left < edgeX || rect.right > viewportWidth - edgeX || rect.top < edgeY || rect.bottom > viewportHeight - edgeY;
-    if (mode === "center" || isNearEdge) {
+    const { viewportHeight, safeTop, safeBottom, desiredTop } = getMidiEditorScrollBounds();
+    const edgeX = viewportWidth * 0.18;
+    const needsHorizontalHelp = rect.left < edgeX || rect.right > viewportWidth - edgeX;
+    const needsVerticalHelp = mode === "center" || rect.top < safeTop || rect.bottom > safeBottom;
+
+    if (needsHorizontalHelp) {
       try {
-        element.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+        element.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
       } catch {
         element.scrollIntoView(false);
+      }
+    }
+
+    if (needsVerticalHelp) {
+      const maxStep = Math.max(120, viewportHeight * 0.7);
+      const offset = Math.max(-maxStep, Math.min(maxStep, rect.top - desiredTop));
+      if (Math.abs(offset) > 4) {
+        window.scrollBy({ top: offset, behavior: "smooth" });
       }
     }
   };
