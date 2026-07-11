@@ -29,6 +29,10 @@ let midiSelectedCell = { measureIndex: 0, noteIndex: 0 };
 let noteEditHistory = [];
 let noteEditHistoryIndex = -1;
 let isComposingNoteText = false;
+let midiAudioContext = null;
+let midiPlaybackState = { timers: [], oscillators: [], startedAt: 0, tickRange: null };
+let lastMidiPreviewKey = "";
+let lastMidiPreviewAt = 0;
 const NOTE_EDIT_HISTORY_LIMIT = 50;
 
 class MidiReader {
@@ -59,6 +63,7 @@ function parseMidiFile(buffer) {
     const end = r.pos + r.readUint32();
     let tick = 0, runningStatus = null;
     const notes = [], tempos = [], timeSignatures = [];
+    const activeNotes = new Map();
     while (r.pos < end) {
       tick += r.readVarLen();
       let status = r.readUint8();
@@ -78,10 +83,23 @@ function parseMidiFile(buffer) {
         const data1 = r.readUint8();
         const needsTwo = command !== 0xc0 && command !== 0xd0;
         const data2 = needsTwo ? r.readUint8() : 0;
-        if (command === 0x90 && data2 > 0) notes.push({ tick, note: data1, velocity: data2, channel });
+        const noteKey = `${channel}:${data1}`;
+        if (command === 0x90 && data2 > 0) {
+          if (!activeNotes.has(noteKey)) activeNotes.set(noteKey, []);
+          activeNotes.get(noteKey).push({ tick, note: data1, velocity: data2, channel });
+        }
+        if (command === 0x80 || (command === 0x90 && data2 === 0)) {
+          const stack = activeNotes.get(noteKey);
+          const start = stack?.shift();
+          if (start) notes.push({ ...start, durationTicks: Math.max(1, tick - start.tick), endTick: tick });
+        }
       } else { throw new Error("未対応のMIDIイベントを検出しました"); }
     }
     r.pos = end;
+    activeNotes.forEach((stack) => {
+      stack.forEach((start) => notes.push({ ...start, durationTicks: ticksPerQuarter, endTick: start.tick + ticksPerQuarter }));
+    });
+    notes.sort((a, b) => a.tick - b.tick || a.note - b.note);
     tempos.forEach((e) => globalTempoEvents.push(e));
     timeSignatures.forEach((e) => globalTimeSignatures.push(e));
     tracks.push({ index: t, notes, tempos, timeSignatures });
@@ -96,6 +114,127 @@ function ticksPerMeasureAt(midi, tick) {
   const sig = [...midi.timeSignatures].reverse().find((s) => s.tick <= tick) || { numerator: 4, denominator: 4 };
   return midi.ticksPerQuarter * 4 * sig.numerator / sig.denominator;
 }
+
+
+function getTempoEvents(midi) {
+  const events = Array.isArray(midi?.tempoEvents) ? midi.tempoEvents.filter((event) => event?.bpm > 0) : [];
+  const normalized = events.length ? events : [{ tick: 0, bpm: 120 }];
+  if (normalized[0].tick > 0) normalized.unshift({ tick: 0, bpm: 120 });
+  return normalized.sort((a, b) => a.tick - b.tick);
+}
+
+function ticksToSeconds(midi, tick) {
+  const tempos = getTempoEvents(midi);
+  let seconds = 0;
+  for (let i = 0; i < tempos.length; i++) {
+    const current = tempos[i];
+    const nextTick = tempos[i + 1]?.tick ?? tick;
+    const segmentEnd = Math.min(tick, nextTick);
+    if (segmentEnd > current.tick) seconds += ((segmentEnd - current.tick) / midi.ticksPerQuarter) * (60 / current.bpm);
+    if (tick < nextTick) break;
+  }
+  return seconds;
+}
+
+function getSelectedMidiNotes() {
+  if (!midiState) return [];
+  const track = midiState.parsed.tracks[getSelectedMidiTrackIndex()];
+  return [...(track?.notes || [])].sort((a, b) => a.tick - b.tick || a.note - b.note);
+}
+
+function getNoteMeasureNumber(note) {
+  if (!midiState || !note) return 0;
+  return Math.floor(note.tick / ticksPerMeasureAt(midiState.parsed, note.tick)) + 1;
+}
+
+function getNotesForMeasureNumber(measureNumber) {
+  return getSelectedMidiNotes().filter((note) => getNoteMeasureNumber(note) === measureNumber);
+}
+
+function getEditorMidiNote(measureIndex, noteIndex) {
+  const measureNumber = midiEditorData[measureIndex]?.measure;
+  return getNotesForMeasureNumber(measureNumber)[noteIndex] || null;
+}
+
+function midiNoteToFrequency(midiNote) {
+  return 440 * Math.pow(2, (midiNote - 69) / 12);
+}
+
+function updateMidiCurrentMeasure(value) {
+  const element = $("midiCurrentMeasure");
+  if (element) element.textContent = value;
+}
+
+async function ensureMidiAudioContext() {
+  const AudioCtor = window.AudioContext || window.webkitAudioContext;
+  if (!AudioCtor) { showToast("このブラウザはAudioContextに対応していません"); return null; }
+  if (!midiAudioContext) midiAudioContext = new AudioCtor();
+  if (midiAudioContext.state === "suspended") await midiAudioContext.resume();
+  return midiAudioContext;
+}
+
+function stopMidiPlayback() {
+  midiPlaybackState.timers.forEach((timer) => clearTimeout(timer));
+  midiPlaybackState.oscillators.forEach((osc) => { try { osc.stop(); } catch (_) {} });
+  midiPlaybackState = { timers: [], oscillators: [], startedAt: 0, tickRange: null };
+  updateMidiCurrentMeasure("停止中");
+}
+
+function playSynthNote(note, whenOffsetSeconds = 0, durationSeconds = 0.3) {
+  if (!midiAudioContext || !note) return;
+  const now = midiAudioContext.currentTime;
+  const start = now + Math.max(0, whenOffsetSeconds);
+  const duration = Math.max(0.05, durationSeconds);
+  const end = start + duration;
+  const osc = midiAudioContext.createOscillator();
+  const gain = midiAudioContext.createGain();
+  const velocityGain = Math.max(0.08, Math.min(1, (note.velocity || 96) / 127)) * 0.22;
+  osc.type = "triangle";
+  osc.frequency.setValueAtTime(midiNoteToFrequency(note.note), start);
+  gain.gain.setValueAtTime(0.0001, start);
+  gain.gain.linearRampToValueAtTime(velocityGain, start + 0.015);
+  gain.gain.setValueAtTime(velocityGain, Math.max(start + 0.02, end - 0.04));
+  gain.gain.linearRampToValueAtTime(0.0001, end);
+  osc.connect(gain).connect(midiAudioContext.destination);
+  osc.start(start);
+  osc.stop(end + 0.02);
+  midiPlaybackState.oscillators.push(osc);
+  osc.onended = () => { midiPlaybackState.oscillators = midiPlaybackState.oscillators.filter((item) => item !== osc); };
+}
+
+async function previewMidiEditorNote(measureIndex, noteIndex) {
+  if (isComposingNoteText) return;
+  const previewKey = `${measureIndex}:${noteIndex}`;
+  const now = Date.now();
+  if (previewKey === lastMidiPreviewKey && now - lastMidiPreviewAt < 180) return;
+  lastMidiPreviewKey = previewKey;
+  lastMidiPreviewAt = now;
+  const note = getEditorMidiNote(measureIndex, noteIndex);
+  if (!note || !(await ensureMidiAudioContext())) return;
+  playSynthNote(note, 0, 0.28);
+}
+
+async function playMidiNotes(notes, labelPrefix = "小節") {
+  if (!notes.length) { showToast("再生するMIDI音符がありません"); return; }
+  if (!(await ensureMidiAudioContext())) return;
+  stopMidiPlayback();
+  const midi = midiState.parsed;
+  const speed = Number($("midiPlaybackSpeed")?.value || 1);
+  const firstTick = Math.min(...notes.map((note) => note.tick));
+  const firstSeconds = ticksToSeconds(midi, firstTick);
+  notes.forEach((note) => {
+    const start = (ticksToSeconds(midi, note.tick) - firstSeconds) / speed;
+    const duration = Math.max(0.08, (ticksToSeconds(midi, note.endTick ?? note.tick + (note.durationTicks || midi.ticksPerQuarter)) - ticksToSeconds(midi, note.tick)) / speed);
+    playSynthNote(note, start, duration);
+    const timer = setTimeout(() => updateMidiCurrentMeasure(`${labelPrefix}${getNoteMeasureNumber(note)}`), Math.max(0, start * 1000));
+    midiPlaybackState.timers.push(timer);
+  });
+  const lastEnd = Math.max(...notes.map((note) => ticksToSeconds(midi, note.endTick ?? note.tick + (note.durationTicks || midi.ticksPerQuarter)))) - firstSeconds;
+  midiPlaybackState.timers.push(setTimeout(() => updateMidiCurrentMeasure("停止中"), (lastEnd / speed + 0.15) * 1000));
+}
+
+function playAllMidi() { playMidiNotes(getSelectedMidiNotes(), "小節"); }
+function playMidiMeasure(measureIndex) { const measure = midiEditorData[measureIndex]; if (measure) playMidiNotes(getNotesForMeasureNumber(measure.measure), "小節"); }
 
 function getTrackMeasureCounts(midi, trackIndex) {
   const track = midi.tracks[trackIndex];
@@ -628,6 +767,7 @@ function renderMidiNoteEditor(options = {}) {
   editor.innerHTML = "";
   if (!midiState) {
     editor.innerHTML = `<p class="empty-editor-message">MIDIを読み込むと、音符ごとの編集表が表示されます。</p>`;
+    updateMidiCurrentMeasure("停止中");
     updateNoteEditHistoryButtons();
     return;
   }
@@ -639,9 +779,17 @@ function renderMidiNoteEditor(options = {}) {
   midiEditorData.forEach((measure, measureIndex) => {
     const card = document.createElement("section");
     card.className = "midi-measure-card measure-card";
+    const header = document.createElement("div");
+    header.className = "midi-measure-card-header";
     const title = document.createElement("h5");
     title.textContent = `小節 ${measure.measure}`;
-    card.appendChild(title);
+    const playButton = document.createElement("button");
+    playButton.type = "button";
+    playButton.className = "midi-measure-play-button";
+    playButton.dataset.measurePlayIndex = String(measureIndex);
+    playButton.textContent = "この小節を再生";
+    header.append(title, playButton);
+    card.appendChild(header);
     const notes = document.createElement("div");
     notes.className = "midi-note-inputs note-edit-table";
     measure.lyrics.forEach((lyric, noteIndex) => {
@@ -727,6 +875,7 @@ function getMidiProjectData() {
     editorData: midiEditorData,
     editorOverflow: midiEditorOverflow,
     autoShiftMode: Boolean($("midiAutoShiftMode")?.checked),
+    playbackSpeed: $("midiPlaybackSpeed")?.value || "1",
     state: serializeMidiState(),
   };
 }
@@ -743,6 +892,7 @@ function setMidiProjectData(data) {
   midiEditorData = Array.isArray(data?.editorData) ? data.editorData : [];
   midiEditorOverflow = Array.isArray(data?.editorOverflow) ? data.editorOverflow : [];
   if ($("midiAutoShiftMode")) $("midiAutoShiftMode").checked = Boolean(data?.autoShiftMode);
+  if ($("midiPlaybackSpeed")) $("midiPlaybackSpeed").value = data?.playbackSpeed || "1";
   renderMidiAnalysis(); updateMidiLyricsAllocation();
   if (Array.isArray(data?.editorData)) {
     midiEditorData = data.editorData;
@@ -757,6 +907,7 @@ function setMidiProjectData(data) {
 }
 
 function clearMidiProjectData() {
+  stopMidiPlayback();
   midiState = null;
   if ($("midiFile")) $("midiFile").value = "";
   if ($("midiFileName")) $("midiFileName").textContent = "未選択";
@@ -812,8 +963,13 @@ function setupMidiEvents() {
     if (!input) return;
     midiSelectedCell = { measureIndex: Number(input.dataset.measureIndex), noteIndex: Number(input.dataset.noteIndex) };
     updateMidiSelectedCellClasses();
+    previewMidiEditorNote(midiSelectedCell.measureIndex, midiSelectedCell.noteIndex);
   });
   $("midiNoteEditor").addEventListener("click", (event) => {
+    const measurePlayButton = event.target.closest("button[data-measure-play-index]");
+    if (measurePlayButton) { playMidiMeasure(Number(measurePlayButton.dataset.measurePlayIndex)); return; }
+    const clickedInput = event.target.closest("input[data-measure-index][data-note-index]");
+    if (clickedInput) previewMidiEditorNote(Number(clickedInput.dataset.measureIndex), Number(clickedInput.dataset.noteIndex));
     const button = event.target.closest("button[data-note-action]");
     if (!button) return;
     const measureIndex = Number(button.dataset.measureIndex);
@@ -826,6 +982,9 @@ function setupMidiEvents() {
     if (action === "split") splitMidiEditorNote(measureIndex, noteIndex);
     scheduleAutoSave();
   });
+  $("midiPlayAllButton")?.addEventListener("click", playAllMidi);
+  $("midiStopButton")?.addEventListener("click", stopMidiPlayback);
+  $("midiPlaybackSpeed")?.addEventListener("change", scheduleAutoSave);
   $("midiBuildVoisonaPasteButton")?.addEventListener("click", () => buildMidiVoisonaPasteOutput(true));
   $("midiAutoShiftMode").addEventListener("change", scheduleAutoSave);
   document.querySelectorAll(".note-editor-toolbar, .note-editor-floating-toolbar").forEach((toolbar) => {
