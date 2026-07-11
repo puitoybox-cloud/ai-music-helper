@@ -693,6 +693,12 @@ function handleNoteEditorArrowKey(event, input) {
   if (event.shiftKey || event.metaKey || event.ctrlKey || event.altKey) return;
   const direction = getNoteEditorArrowDirection(event);
   if (!direction) return;
+  const cursorStart = input.selectionStart;
+  const cursorEnd = input.selectionEnd;
+  if (cursorStart === null || cursorEnd === null || cursorStart !== cursorEnd) return;
+  const valueLength = input.value.length;
+  if (direction < 0 && cursorStart > 0) return;
+  if (direction > 0 && cursorStart < valueLength) return;
   const currentIndex = Number(input.dataset.noteEditorIndex);
   if (!Number.isFinite(currentIndex)) return;
   const moved = focusNoteEditorInput(currentIndex + direction, { playPreview: Boolean($("midiArrowPreviewMode")?.checked) });
@@ -1046,7 +1052,7 @@ function setMidiProjectData(data) {
   midiEditorData = Array.isArray(data?.editorData) ? data.editorData : [];
   midiEditorOverflow = Array.isArray(data?.editorOverflow) ? data.editorOverflow : [];
   if ($("midiAutoShiftMode")) $("midiAutoShiftMode").checked = Boolean(data?.autoShiftMode);
-  if ($("midiArrowPreviewMode")) $("midiArrowPreviewMode").checked = Boolean(data?.arrowPreviewMode);
+  if ($("midiArrowPreviewMode")) $("midiArrowPreviewMode").checked = data?.arrowPreviewMode !== false;
   if ($("midiPlaybackSpeed")) $("midiPlaybackSpeed").value = data?.playbackSpeed || "1";
   renderMidiAnalysis(); updateMidiLyricsAllocation();
   if (Array.isArray(data?.editorData)) {
