@@ -653,37 +653,50 @@ function getNoteEditorInputByFlatIndex(index) {
 
 function focusNoteEditorInput(index, { selectText = true, playPreview = false } = {}) {
   const nextInput = getNoteEditorInputByFlatIndex(index);
-  if (!nextInput) return;
+  if (!nextInput) return false;
   const measureIndex = Number(nextInput.dataset.measureIndex);
   const noteIndex = Number(nextInput.dataset.noteIndex);
   midiSelectedCell = { measureIndex, noteIndex };
   suppressNextMidiFocusPreview = !playPreview;
-  nextInput.focus({ preventScroll: true });
+  try {
+    nextInput.focus({ preventScroll: true });
+  } catch {
+    nextInput.focus();
+  }
   const length = nextInput.value.length;
   if (selectText && length > 0) nextInput.setSelectionRange?.(0, length);
   else nextInput.setSelectionRange?.(length, length);
-  nextInput.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+  try {
+    nextInput.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+  } catch {
+    nextInput.scrollIntoView(false);
+  }
   updateMidiSelectedCellClasses();
   if (playPreview) previewMidiEditorNote(measureIndex, noteIndex);
+  return true;
+}
+
+function getNoteEditorArrowDirection(event) {
+  if (event.key === "ArrowLeft" || event.key === "Left") return -1;
+  if (event.key === "ArrowRight" || event.key === "Right") return 1;
+  if (event.code === "ArrowLeft") return -1;
+  if (event.code === "ArrowRight") return 1;
+  return 0;
+}
+
+function isNoteEditorImeEvent(event) {
+  return isComposingNoteText || event.isComposing || event.keyCode === 229 || event.key === "Process";
 }
 
 function handleNoteEditorArrowKey(event, input) {
-  if (isComposingNoteText || event.isComposing) return;
+  if (isNoteEditorImeEvent(event)) return;
   if (event.shiftKey || event.metaKey || event.ctrlKey || event.altKey) return;
-  if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
-  const selectionStart = input.selectionStart ?? 0;
-  const selectionEnd = input.selectionEnd ?? 0;
-  const valueLength = input.value.length;
+  const direction = getNoteEditorArrowDirection(event);
+  if (!direction) return;
   const currentIndex = Number(input.dataset.noteEditorIndex);
   if (!Number.isFinite(currentIndex)) return;
-  if (event.key === "ArrowLeft" && selectionStart === 0 && selectionEnd === 0) {
-    event.preventDefault();
-    focusNoteEditorInput(currentIndex - 1, { playPreview: Boolean($("midiArrowPreviewMode")?.checked) });
-  }
-  if (event.key === "ArrowRight" && selectionStart === valueLength && selectionEnd === valueLength) {
-    event.preventDefault();
-    focusNoteEditorInput(currentIndex + 1, { playPreview: Boolean($("midiArrowPreviewMode")?.checked) });
-  }
+  const moved = focusNoteEditorInput(currentIndex + direction, { playPreview: Boolean($("midiArrowPreviewMode")?.checked) });
+  if (moved) event.preventDefault();
 }
 
 function getMidiVoisonaSeparator() {
