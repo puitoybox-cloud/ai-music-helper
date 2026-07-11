@@ -35,6 +35,7 @@ let midiPlaybackNotes = [];
 let midiPlaybackState = { timers: [], oscillators: [], startedAt: 0, tickRange: null };
 let lastMidiPreviewKey = "";
 let lastMidiPreviewAt = 0;
+let suppressNextMidiFocusPreview = false;
 const NOTE_EDIT_HISTORY_LIMIT = 50;
 
 class MidiReader {
@@ -646,6 +647,45 @@ function getFlatIndex(measureIndex, noteIndex) {
   return midiEditorData.slice(0, measureIndex).reduce((sum, measure) => sum + measure.lyrics.length, 0) + noteIndex;
 }
 
+function getNoteEditorInputByFlatIndex(index) {
+  return document.querySelector(`#midiNoteEditor input[data-note-editor-index="${index}"]`);
+}
+
+function focusNoteEditorInput(index, { selectText = true, playPreview = false } = {}) {
+  const nextInput = getNoteEditorInputByFlatIndex(index);
+  if (!nextInput) return;
+  const measureIndex = Number(nextInput.dataset.measureIndex);
+  const noteIndex = Number(nextInput.dataset.noteIndex);
+  midiSelectedCell = { measureIndex, noteIndex };
+  suppressNextMidiFocusPreview = !playPreview;
+  nextInput.focus({ preventScroll: true });
+  const length = nextInput.value.length;
+  if (selectText && length > 0) nextInput.setSelectionRange?.(0, length);
+  else nextInput.setSelectionRange?.(length, length);
+  nextInput.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+  updateMidiSelectedCellClasses();
+  if (playPreview) previewMidiEditorNote(measureIndex, noteIndex);
+}
+
+function handleNoteEditorArrowKey(event, input) {
+  if (isComposingNoteText || event.isComposing) return;
+  if (event.shiftKey || event.metaKey || event.ctrlKey || event.altKey) return;
+  if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+  const selectionStart = input.selectionStart ?? 0;
+  const selectionEnd = input.selectionEnd ?? 0;
+  const valueLength = input.value.length;
+  const currentIndex = Number(input.dataset.noteEditorIndex);
+  if (!Number.isFinite(currentIndex)) return;
+  if (event.key === "ArrowLeft" && selectionStart === 0 && selectionEnd === 0) {
+    event.preventDefault();
+    focusNoteEditorInput(currentIndex - 1, { playPreview: Boolean($("midiArrowPreviewMode")?.checked) });
+  }
+  if (event.key === "ArrowRight" && selectionStart === valueLength && selectionEnd === valueLength) {
+    event.preventDefault();
+    focusNoteEditorInput(currentIndex + 1, { playPreview: Boolean($("midiArrowPreviewMode")?.checked) });
+  }
+}
+
 function getMidiVoisonaSeparator() {
   return " ";
 }
@@ -892,10 +932,11 @@ function renderMidiNoteEditor(options = {}) {
     const notes = document.createElement("div");
     notes.className = "midi-note-inputs note-edit-table";
     measure.lyrics.forEach((lyric, noteIndex) => {
+      const noteEditorIndex = getFlatIndex(measureIndex, noteIndex);
       const label = document.createElement("label");
       const isSelected = midiSelectedCell.measureIndex === measureIndex && midiSelectedCell.noteIndex === noteIndex;
       label.className = `midi-note-cell note-cell${isSelected ? " is-selected" : ""}`;
-      label.innerHTML = `<span>音符${noteIndex + 1}</span><input class="note-input" type="text" value="" data-measure-index="${measureIndex}" data-note-index="${noteIndex}" data-old-value="" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="text" aria-label="小節${measure.measure} 音符${noteIndex + 1}" /><div class="note-cell-actions"><button type="button" data-note-action="insert" data-measure-index="${measureIndex}" data-note-index="${noteIndex}">この位置で1音追加</button><button type="button" data-note-action="delete" data-measure-index="${measureIndex}" data-note-index="${noteIndex}">この音を削除して前に詰める</button><button type="button" data-note-action="merge" data-measure-index="${measureIndex}" data-note-index="${noteIndex}">右と結合</button><button type="button" data-note-action="split" data-measure-index="${measureIndex}" data-note-index="${noteIndex}">ここで分割</button></div>`;
+      label.innerHTML = `<span>音符${noteIndex + 1}</span><input class="note-input" type="text" value="" data-measure-index="${measureIndex}" data-note-index="${noteIndex}" data-note-editor-index="${noteEditorIndex}" data-old-value="" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="text" aria-label="小節${measure.measure} 音符${noteIndex + 1}" /><div class="note-cell-actions"><button type="button" data-note-action="insert" data-measure-index="${measureIndex}" data-note-index="${noteIndex}">この位置で1音追加</button><button type="button" data-note-action="delete" data-measure-index="${measureIndex}" data-note-index="${noteIndex}">この音を削除して前に詰める</button><button type="button" data-note-action="merge" data-measure-index="${measureIndex}" data-note-index="${noteIndex}">右と結合</button><button type="button" data-note-action="split" data-measure-index="${measureIndex}" data-note-index="${noteIndex}">ここで分割</button></div>`;
       const input = label.querySelector("input");
       input.value = lyric;
       input.dataset.oldValue = lyric;
@@ -974,6 +1015,7 @@ function getMidiProjectData() {
     editorData: midiEditorData,
     editorOverflow: midiEditorOverflow,
     autoShiftMode: Boolean($("midiAutoShiftMode")?.checked),
+    arrowPreviewMode: Boolean($("midiArrowPreviewMode")?.checked),
     playbackSpeed: $("midiPlaybackSpeed")?.value || "1",
     state: serializeMidiState(),
   };
@@ -991,6 +1033,7 @@ function setMidiProjectData(data) {
   midiEditorData = Array.isArray(data?.editorData) ? data.editorData : [];
   midiEditorOverflow = Array.isArray(data?.editorOverflow) ? data.editorOverflow : [];
   if ($("midiAutoShiftMode")) $("midiAutoShiftMode").checked = Boolean(data?.autoShiftMode);
+  if ($("midiArrowPreviewMode")) $("midiArrowPreviewMode").checked = Boolean(data?.arrowPreviewMode);
   if ($("midiPlaybackSpeed")) $("midiPlaybackSpeed").value = data?.playbackSpeed || "1";
   renderMidiAnalysis(); updateMidiLyricsAllocation();
   if (Array.isArray(data?.editorData)) {
@@ -1048,7 +1091,9 @@ function setupMidiEvents() {
   });
   $("midiNoteEditor").addEventListener("keydown", (event) => {
     const input = event.target.closest("input[data-measure-index][data-note-index]");
-    if (!input || event.key !== "Enter" || isComposingNoteText) return;
+    if (!input) return;
+    handleNoteEditorArrowKey(event, input);
+    if (event.defaultPrevented || event.key !== "Enter" || isComposingNoteText || event.isComposing) return;
     event.preventDefault();
     commitNoteInput(input, { renderAfterShift: true });
   });
@@ -1062,6 +1107,10 @@ function setupMidiEvents() {
     if (!input) return;
     midiSelectedCell = { measureIndex: Number(input.dataset.measureIndex), noteIndex: Number(input.dataset.noteIndex) };
     updateMidiSelectedCellClasses();
+    if (suppressNextMidiFocusPreview) {
+      suppressNextMidiFocusPreview = false;
+      return;
+    }
     previewMidiEditorNote(midiSelectedCell.measureIndex, midiSelectedCell.noteIndex);
   });
   $("midiNoteEditor").addEventListener("click", (event) => {
@@ -1097,6 +1146,7 @@ function setupMidiEvents() {
   $("midiPlaybackSpeed")?.addEventListener("change", scheduleAutoSave);
   $("midiBuildVoisonaPasteButton")?.addEventListener("click", () => buildMidiVoisonaPasteOutput(true));
   $("midiAutoShiftMode").addEventListener("change", scheduleAutoSave);
+  $("midiArrowPreviewMode")?.addEventListener("change", scheduleAutoSave);
   document.querySelectorAll(".note-editor-toolbar, .note-editor-floating-toolbar").forEach((toolbar) => {
     toolbar.addEventListener("click", (event) => {
       const button = event.target.closest("button[data-note-toolbar-action]");
