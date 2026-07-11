@@ -214,6 +214,17 @@
           <div id="midiMeasureCounts" class="measure-list" aria-live="polite"></div>
         </div>
 
+        <div class="sub-card full-span midi-playback-panel" aria-labelledby="midi-playback-title">
+          <h3 id="midi-playback-title">MIDI再生</h3>
+          <p class="helper-text">読み込んだ歌メロMIDIを、ブラウザ内蔵のWeb Audio APIによるシンプルなシンセ音で確認できます。自動再生はせず、ボタン操作時だけ音を鳴らします。</p>
+          <div class="midi-playback-controls">
+            <button type="button" id="midiPlayAllButton" class="primary">全体再生</button>
+            <button type="button" id="midiStopButton">停止</button>
+            <label>再生速度<select id="midiPlaybackSpeed"><option value="0.5">0.5倍</option><option value="0.75">0.75倍</option><option value="1" selected>1倍</option><option value="1.25">1.25倍</option></select></label>
+            <p class="midi-current-measure">現在再生中：<strong id="midiCurrentMeasure">停止中</strong></p>
+          </div>
+        </div>
+
         <div class="sub-card full-span">
           <h3>歌詞割り当て結果</h3>
           <label>ひらがな歌詞<textarea id="midiLyricsInput" rows="5" placeholder="例：みらいへはしりだす"></textarea></label>
