@@ -292,7 +292,10 @@ function scheduleMidiNotes(notes, context, speed = 1, labelPrefix = "小節") {
     const start = (note.startSeconds || 0) / safeSpeed;
     const duration = Math.max(0.08, (note.durationSeconds || 0.3) / safeSpeed);
     playSynthNote(note, start, duration, context);
-    const timer = setTimeout(() => updateMidiCurrentMeasure(`${labelPrefix}${note.measure || getNoteMeasureNumber(note)}`), Math.max(0, start * 1000));
+    const timer = setTimeout(() => {
+      updateMidiCurrentMeasure(`${labelPrefix}${note.measure || getNoteMeasureNumber(note)}`);
+      focusMidiEditorPlaybackNote(note, { mode: "smart" });
+    }, Math.max(0, start * 1000));
     midiPlaybackState.timers.push(timer);
   });
   const lastEnd = Math.max(...notes.map((note) => (note.startSeconds || 0) + (note.durationSeconds || 0.3)));
@@ -651,7 +654,7 @@ function getNoteEditorInputByFlatIndex(index) {
   return document.querySelector(`#midiNoteEditor input[data-note-editor-index="${index}"]`);
 }
 
-function focusNoteEditorInput(index, { selectText = true, playPreview = false } = {}) {
+function focusNoteEditorInput(index, { selectText = true, playPreview = false, scrollMode = "smart" } = {}) {
   const nextInput = getNoteEditorInputByFlatIndex(index);
   if (!nextInput) return false;
   const measureIndex = Number(nextInput.dataset.measureIndex);
@@ -666,12 +669,8 @@ function focusNoteEditorInput(index, { selectText = true, playPreview = false } 
   const length = nextInput.value.length;
   if (selectText && length > 0) nextInput.setSelectionRange?.(0, length);
   else nextInput.setSelectionRange?.(length, length);
-  try {
-    nextInput.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
-  } catch {
-    nextInput.scrollIntoView(false);
-  }
   updateMidiSelectedCellClasses();
+  scrollMidiEditorNoteIntoView(nextInput, { mode: scrollMode });
   if (playPreview) previewMidiEditorNote(measureIndex, noteIndex);
   return true;
 }
@@ -781,12 +780,55 @@ function applyMidiEditorShift(flatIndex, newValue, oldValue = "") {
   fillMidiEditorCapacity(combined, capacity);
 }
 
+function scrollMidiEditorNoteIntoView(inputOrCell, { mode = "smart" } = {}) {
+  const element = inputOrCell?.closest?.(".midi-note-cell") || inputOrCell;
+  if (!element) return;
+  const runScroll = () => {
+    const rect = element.getBoundingClientRect();
+    const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+    const edgeX = viewportWidth * 0.25;
+    const edgeY = viewportHeight * 0.25;
+    const isNearEdge = rect.left < edgeX || rect.right > viewportWidth - edgeX || rect.top < edgeY || rect.bottom > viewportHeight - edgeY;
+    if (mode === "center" || isNearEdge) {
+      try {
+        element.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+      } catch {
+        element.scrollIntoView(false);
+      }
+    }
+  };
+  requestAnimationFrame(runScroll);
+}
+
+function getMidiEditorCell(measureIndex, noteIndex) {
+  return getMidiEditorInput(measureIndex, noteIndex)?.closest(".midi-note-cell");
+}
+
 function updateMidiSelectedCellClasses() {
   document.querySelectorAll(".midi-note-cell").forEach((cell) => {
     const input = cell.querySelector("input[data-measure-index][data-note-index]");
     const isSelected = input && Number(input.dataset.measureIndex) === midiSelectedCell.measureIndex && Number(input.dataset.noteIndex) === midiSelectedCell.noteIndex;
     cell.classList.toggle("is-selected", Boolean(isSelected));
   });
+  document.querySelectorAll(".midi-measure-card").forEach((card, index) => {
+    card.classList.toggle("is-active-measure", index === midiSelectedCell.measureIndex);
+  });
+}
+
+function scrollMidiEditorSelectionIntoView(options = {}) {
+  scrollMidiEditorNoteIntoView(getMidiEditorCell(midiSelectedCell.measureIndex, midiSelectedCell.noteIndex), options);
+}
+
+function focusMidiEditorPlaybackNote(note, options = {}) {
+  const measureIndex = midiEditorData.findIndex((measure) => measure.measure === note.measure);
+  if (measureIndex < 0) return;
+  const notesInMeasure = getNotesForMeasureNumber(note.measure);
+  const noteIndex = notesInMeasure.findIndex((item) => item.tick === note.tick && item.note === note.note);
+  if (noteIndex < 0) return;
+  midiSelectedCell = { measureIndex, noteIndex };
+  updateMidiSelectedCellClasses();
+  scrollMidiEditorSelectionIntoView(options);
 }
 
 function insertMidiEditorNoteAfter(measureIndex, noteIndex) {
@@ -873,6 +915,8 @@ function restoreMidiEditorFocus(focusTarget = midiSelectedCell) {
     input.focus({ preventScroll: true });
     const length = input.value.length;
     input.setSelectionRange?.(length, length);
+    updateMidiSelectedCellClasses();
+    scrollMidiEditorNoteIntoView(input, { mode: "center" });
   });
 }
 
@@ -936,7 +980,7 @@ function renderMidiNoteEditor(options = {}) {
   }
   midiEditorData.forEach((measure, measureIndex) => {
     const card = document.createElement("section");
-    card.className = "midi-measure-card measure-card";
+    card.className = `midi-measure-card measure-card${midiSelectedCell.measureIndex === measureIndex ? " is-active-measure" : ""}`;
     const header = document.createElement("div");
     header.className = "midi-measure-card-header";
     const title = document.createElement("h5");
@@ -1126,6 +1170,7 @@ function setupMidiEvents() {
     if (!input) return;
     midiSelectedCell = { measureIndex: Number(input.dataset.measureIndex), noteIndex: Number(input.dataset.noteIndex) };
     updateMidiSelectedCellClasses();
+    scrollMidiEditorNoteIntoView(input, { mode: "smart" });
     if (suppressNextMidiFocusPreview) {
       suppressNextMidiFocusPreview = false;
       return;
@@ -1136,7 +1181,12 @@ function setupMidiEvents() {
     const measurePlayButton = event.target.closest("button[data-measure-play-index]");
     if (measurePlayButton) { playMidiMeasure(Number(measurePlayButton.dataset.measurePlayIndex)); return; }
     const clickedInput = event.target.closest("input[data-measure-index][data-note-index]");
-    if (clickedInput) previewMidiEditorNote(Number(clickedInput.dataset.measureIndex), Number(clickedInput.dataset.noteIndex));
+    if (clickedInput) {
+      midiSelectedCell = { measureIndex: Number(clickedInput.dataset.measureIndex), noteIndex: Number(clickedInput.dataset.noteIndex) };
+      updateMidiSelectedCellClasses();
+      scrollMidiEditorNoteIntoView(clickedInput, { mode: "center" });
+      previewMidiEditorNote(Number(clickedInput.dataset.measureIndex), Number(clickedInput.dataset.noteIndex));
+    }
     const button = event.target.closest("button[data-note-action]");
     if (!button) return;
     const measureIndex = Number(button.dataset.measureIndex);

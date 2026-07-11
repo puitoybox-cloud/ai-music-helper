@@ -180,8 +180,11 @@ button.primary, .file-button { background: var(--blue-dark); color: #fff; } butt
 .midi-arrow-preview-option { background: #eef8ff; color: var(--blue-dark); }
 .midi-overflow-lyrics { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; border: 1px solid #f6c36b; background: #fff8e8; color: #8a5a00; border-radius: 16px; padding: 12px 14px; font-weight: 900; line-height: 1.7; }
 .midi-overflow-lyrics[hidden] { display: none; }
-.midi-note-cell { position: relative; padding: 8px; border: 1px solid transparent; border-radius: 16px; }
-.midi-note-cell.is-selected { border-color: var(--blue); background: #eef8ff; box-shadow: 0 8px 18px rgba(43, 108, 176, 0.12); }
+.midi-measure-card { transition: background-color .2s ease, box-shadow .2s ease, border-color .2s ease; }
+.midi-measure-card.is-active-measure { background: #f0f9ff; border-color: #b7ddff; box-shadow: 0 14px 30px rgba(43, 108, 176, 0.16); }
+.midi-note-cell { position: relative; padding: 8px; border: 1px solid transparent; border-radius: 16px; transition: transform .16s ease, background-color .16s ease, border-color .16s ease, box-shadow .16s ease; transform-origin: center; }
+.midi-note-cell.is-selected { z-index: 2; border-color: var(--blue-dark); background: #f3fbff; box-shadow: 0 10px 22px rgba(43, 108, 176, 0.18); transform: scale(1.08); }
+.midi-note-cell.is-selected input { border-color: var(--blue); background: #fff; }
 .note-cell-actions { display: none; grid-template-columns: 1fr; gap: 6px; margin-top: 6px; }
 .midi-note-cell.is-selected .note-cell-actions { display: grid; }
 .note-cell-actions button { min-height: 38px; border-radius: 12px; padding: 8px 10px; font-size: .78rem; line-height: 1.25; background: #e8eef4; }
